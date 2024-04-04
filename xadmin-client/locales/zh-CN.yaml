@@ -1,0 +1,467 @@
+tableBar:
+  loose: 宽松
+  default: 默认
+  compact: 紧凑
+  refresh: 刷新
+  density: 密度
+  columnDisplay: 列展示
+  columnSettings: 列设置
+  fold: 折叠
+  unfold: 展开
+
+avatarUpload:
+  tips: 温馨提示：右键上方裁剪区可开启功能菜单
+  imageSize: 图像大小：{ x } x { y } 像素
+  fileSize: 文件大小：{ x } （{ y } 字节）
+
+cropper:
+  upload: 上传
+  download: 下载
+  change: 圆形矩形裁剪
+  reset: 重置
+  up: 上移（可长按）
+  down: 下移（可长按）
+  left: 左移（可长按）
+  right: 右移（可长按）
+  zoomIn: 放大（可长按）
+  zoomOut: 缩小（可长按）
+  flipHorizontal: 水平翻转
+  flipVertical: 垂直翻转
+  anticlockwise: 逆时针旋转
+  clockwise: 顺时针旋转
+
+layout:
+  notice: 消息通知
+  announcement: 系统公告
+  settings: 项目配置
+  total: "共 { total } 项"
+  noData: 暂无结果
+  more: 更多
+  fold: 点击折叠
+  unfold: 点击展开
+  searchPlaceholder: 搜索菜单（中文模式下支持拼音搜索）
+  theme: 主题
+  navigationMode: 导航栏模式
+  leftMode: 左侧菜单，亲切熟悉
+  topMode: 顶部菜单，简洁概览
+  mixedMode: 混合菜单，灵活多变
+  themeColor: 主题色
+  display: 界面显示
+  greyMode: 灰色模式
+  colorWeakMode: 色弱模式
+  hideTabs: 隐藏标签页
+  hideFooter: 隐藏页脚
+  sidebarLogo: 侧边栏Logo
+  labelPersistence: 标签页持久化
+  labelStyle: 标签风格
+  card: 卡片
+  smart: 灵动
+  cleanOut: 清空缓存并返回登录页
+  noticeTime: YYYY年MM月DD日 HH:mm:ss
+  backTop: 回到顶部
+  updateCheck: 检测到新版本
+  updateNow: 立即更新
+  clearCache: 清空缓存
+  light: 浅色
+  dark: 深色
+  auto: 自动
+  lightTip: 清新启航，点亮舒适的工作界面
+  darkTip: 月光序曲，沉醉于夜的静谧雅致
+  autoTip: 同步时光，界面随晨昏自然呼应
+  smartTip: 灵动标签，添趣生辉
+  cardTip: 卡片标签，高效浏览
+  favorite: 收藏
+  dragSort: （可拖拽排序）
+  searchHistory: 搜索历史
+  pageWidth: 页宽
+  fixed: 固定
+  fixedTip: 紧凑页面，轻松找到所需信息
+  customization: 自定义
+  customTip: 最小1280、最大1600
+
+error:
+  error403: 抱歉，你无权访问该页面
+  error404: 抱歉，你访问的页面不存在
+  error500: 抱歉，服务器出错了
+  goBack: 返回首页
+
+password:
+  veryWeak: 很弱
+  weak: 弱
+  average: 一般
+  strong: 强
+  veryStrong: 很强
+
+labels:
+  id: ID
+  status: 状态
+  verifyStatus: 请选择状态
+  description: 备注
+  verifyDescription: 请输入备注
+  sort: 排序
+  active: 激活
+  inactive: 未激活
+  read: 已读
+  unread: 未读
+  unPublish: 未发布
+  publish: 已发布
+  operations: 操作
+  enable: 启用
+  disable: 禁用
+  sure: 确定
+  cancel: 取消
+  descending: 降序
+  ascending: 升序
+  success: 成功
+  failed: 失败
+  checkColumn: 勾选列
+  dClickCopy: 双击进行拷贝
+
+results:
+  success: 执行成功
+  failed: 执行失败
+  batchDelete: 批量删除 { count } 条数据
+  batchRead: 批量已读 { count } 条数据
+  noSelectedData: 数据未选择
+  formValidationFailed: 表单校验失败
+
+sorts:
+  registrationDate: 注册时间
+  loginDate: 登录时间
+  createdDate: 创建时间
+  updatedDate: 更新时间
+  rank: 排序
+
+buttons:
+  hsLoginOut: 退出系统
+  hsfullscreen: 全屏
+  hsexitfullscreen: 退出全屏
+  hsrefreshRoute: 刷新路由
+  hslogin: 登录
+  hsadd: 新增
+  hsmark: 标记/取消
+  hssave: 保存
+  hsupdate: 更新
+  hssearch: 搜索
+  hsexpendAll: 全部展开
+  hscollapseAll: 全部折叠
+  selectAll: 选择全部
+  unSelectAll: 取消选择
+  hssystemSet: 打开项目配置
+  hsdelete: 删除
+  hsreload: 重新加载
+  hsreset: 重置
+  hscloseCurrentTab: 关闭当前标签页
+  hscloseLeftTabs: 关闭左侧标签页
+  hscloseRightTabs: 关闭右侧标签页
+  hscloseOtherTabs: 关闭其他标签页
+  hscloseAllTabs: 关闭全部标签页
+  hswholeFullScreen: 全屏
+  hswholeExitFullScreen: 退出全屏
+  hscontentFullScreen: 内容区全屏
+  hscontentExitFullScreen: 内容区退出全屏
+  hscancel: 取消
+  hsclose: 关闭
+  hsswitch: 切换
+  hssure: 确定
+  hsedit: 编辑
+  hsdetail: 查看
+  hsbatchdelete: 批量删除
+  hsbatchdeleteconfirm: 确定批量删除 { count } 条数据吗？
+  hsoperateconfirm: 确定 { action } { message } ？
+  hsselected: "已选 { count } 项"
+  hsconfirmdelete: 确定删除该数据吗？
+  hsconfirmdupdate: 确定更新该数据吗？
+
+menus:
+  hshome: 首页
+  hslogin: 登录
+  hssysManagement: 系统管理
+  hsUser: 用户管理
+  hsDept: 部门管理
+  hsMenu: 菜单管理
+  hsPermission: 权限管理
+  hsConfig: 配置管理
+  hsSystemConfig: 系统配置
+  hsUserConfig: 用户配置
+  hsRole: 角色权限
+  hsDataPermission: 数据权限
+  hsLog: 日志管理
+  hsModelField: 字段管理
+  hsOperationLog: 访问日志
+  hsLoginLog: 登录日志
+  permission: 权限管理
+  hsabnormal: 异常页面
+  hsfourZeroFour: "404"
+  hsfourZeroOne: "403"
+  hsFive: "500"
+  hsAbout: 关于
+  noticeAndAnnouncement: 通知公告
+  newsAndAnnouncement: 消息公告
+  readNotice: 已读消息
+  timingTask: 定时任务
+  personalCenter: 个人中心
+  messageCenter: 消息中心
+  chat: 聊天室
+
+userinfo:
+  userinfo: 个人信息
+  edit: 修改个人信息
+  basicInfo: 基本资料
+  changePassword: 修改密码
+  updateAvatar: 更新头像
+  updateUserInfo: 更新信息
+  oldPassword: 旧密码
+  newPassword: 新密码
+  verifyOldPassword: 请输入旧密码
+  verifyNewPassword: 请输入新密码
+  surePassword: 确认密码
+
+user:
+  user: 用户
+  avatar: 头像
+  username: 用户名
+  nickname: 昵称
+  password: 密码
+  email: 邮箱
+  gender: 性别
+  male: 男
+  female: 女
+  unknown: 未知
+  roles: 角色
+  registrationDate: 注册时间
+  mobile: 手机号
+  exportExcel: 导出表格
+  batchSendNotice: 批量发送通知
+  editAvatar: 修改头像
+  resetPassword: 重置密码
+  assignRoles: 分配角色权限
+  verifyUserId: 请输入用户ID
+  verifyUsername: 请输入用户名
+  verifyPassword: 请输入密码
+  verifyNickname: 请输入昵称
+  verifyMobile: 请输入手机号
+  verifyEmail: 请输入邮箱
+  verifyGender: 请选择性别
+  resetPasswd: 重置用户 { user } 的密码
+  assignRole: 分配用户 { user } 的角色权限
+  updateAvatar: 更新用户 { user } 的头像
+  excelSheet: 用户注册信息
+  excelName: 用户注册报表
+  deptId: 部门ID
+  userId: 用户ID
+  userInfo: 用户信息
+  dept: 所属部门
+  rules: 数据权限
+
+dept:
+  name: 部门名称
+  dept: 部门
+  code: 部门标识
+  roles: 角色
+  rules: 数据权限
+  assignRoles: 分配角色权限
+  assignRole: 分配部门 { dept } 的角色权限
+  userCount: 人员数量
+  autoBind: 自动绑定
+  autoBindDesc: 注册参数channel的值和该部门code一致，则该用户会自动和该部门绑定
+
+permission:
+  permission: 数据权限
+  name: 权限名称
+  mode: 权限模式
+  addName: 属性名
+  addValue: 属性值
+  addType: 值类型
+  addExclude: 排除
+  addMatch: 匹配
+  rules: 规则列表
+  table: 表名
+  field: 字段名
+  rulesFailed: 规则不存在或有误，请输入规则
+
+role:
+  role: 角色
+  name: 角色名称
+  code: 角色标识
+  verifyRoleName: 请输入角色名称
+  verifyRoleCode: 请输入角色标识
+  permissions: 权限
+
+menu:
+  menus: 菜单
+  type: 类型
+  title: 名称
+  icon: 图标
+  transitionLeave: 离场动画
+  transitionEnter: 进场动画
+  cache: 缓存
+  componentName: 组件名称
+  componentPath: 组件路径
+  exampleComponentName: "如：`user`需要和前端定义的组件名称一致，如外网地址需内链访问则以`http(s)://`开头"
+  exampleRoutePath: "访问的路由地址，如：`/user`, `/system/about`"
+  exampleComponentPath: "访问的组件路径，如：`system/user/index`，默认在`views`目录下"
+  exampleCache: "选择是则会被`keep-alive`缓存，需要匹配组件的`name`和地址保持一致"
+  exampleShowLink: "选择隐藏则路由将不会出现在侧边栏，但仍然可以访问"
+  exampleMenuStatus: "选择停用则路由将不会出现在侧边栏，也不能被访问"
+  exampleRequestStatus: "选择停用则权限将失效"
+  exampleExternalLink: "选择是外链则路由地址需要以`http(s)://`开头"
+  verifyExampleExternalLink: "默认为空，除非有外链"
+  exampleAnimation: "内嵌的iframe页面开启首次加载动画"
+  examplePermissionCode: "控制器中定义的权限字符，如：PreAuthorize(`permission.hashPermission('menu:query')`)"
+  routePath: 路由地址
+  verifyType: 请选择菜单类型
+  verifyTitle: 请输入菜单标题
+  verifyPath: 请输入路由地址
+  verifyComponentPath: 请输入组件路径
+  verifyTransition: 请选择动画
+  verifyRequestMethod: 请输入请求方式
+  verifyPermissionName: 请输入权限名称
+  verifyPermissionCode: 请输入权限标识
+  pathError: 路由必须`/`开头
+  parentNode: 上级节点
+  showParentMenu: 显示父级菜单
+  showLink: 菜单可见
+  externalLink: 内嵌外链地址
+  animation: 内嵌动画
+  permissionName: 权限名称
+  permissionCode: 权限标识
+  permissionPath: 权限路由
+  requestMethod: 请求方式
+  directory: 目录
+  menu: 菜单
+  permissions: 权限
+  checkStrictly: 层级关联
+  checkUnStrictly: 层级独立
+  associationModel: 关联模型
+  exampleAssociationModel: 模型关联用与字段权限控制
+
+logsOperation:
+  module: 模块
+  address: Ip地址
+  system: 操作系统
+  browser: 浏览器
+  statusCode: 状态码
+  parameters: 请求参数
+  response: 响应内容
+  requestPath: 请求路径
+  verifyAddress: 请输入Ip地址
+  verifySystem: 请输入操作系统
+  verifyBrowser: 请输入浏览器
+  verifyRequestPath: 请输入请求路径
+
+logsLogin:
+  address: Ip地址
+  system: 操作系统
+  browser: 浏览器
+  agent: 用户代理
+  loginDisplay: 登录方式
+  verifyAddress: 请输入Ip地址
+  verifySystem: 请输入操作系统
+  verifyBrowser: 请输入浏览器
+  verifyAgent: 请输入用户代理
+
+configSystem:
+  configSystem: 系统配置
+  key: 配置名称
+  value: 配置数值
+  cacheValue: 缓存数值
+  invalidCache: 缓存失效
+  confirmInvalid: 确定缓存失效该数据么？
+  access: 接口访问
+  accessTip: 允许API接口访问该配置
+  inherit: 用户继承
+  inheritTip: 允许用户继承该配置
+
+configUser:
+  configUser: 用户配置
+  key: 配置名称
+  value: 配置数值
+  cacheValue: 缓存数值
+  invalidCache: 缓存失效
+  confirmInvalid: 确定缓存失效该数据么？
+
+modelField:
+  name: 模型/字段数值
+  label: 模型/字段名称
+  parent: 上级节点
+  makeData: 重新生成字段数据
+  fieldType: 字段类型
+
+notice:
+  notice: 通知公告
+  readDate: 已读时间
+  title: 标题
+  type: 类型
+  level: 通知级别
+  publish: 是否发布
+  content: 内容
+  haveRead: 是否已读
+  showSystemNotice: 查看系统公告
+  verifyTitle: 请输入标题
+  verifyContent: 请输入内容
+  readManage: 用户已读消息公告管理
+  messageManage: 消息公告管理
+  receiveRead: 接收人数/已读人数
+  allRead: 全部已读
+  verifyUserIds: 用户ID必须全为数字
+  verifyInputUserIds: 请输入用户ID,多个用户需要通过回车进行分割
+  batchRead: 批量已读
+  unreadMessage: 未读消息
+
+status:
+  hsLoad: 加载中...
+
+login:
+  username: 账号
+  password: 密码
+  verifyCode: 验证码
+  remember: 天内免登录
+  rememberInfo: 勾选并登录后，规定天数内无需输入用户名和密码会自动登入系统
+  sure: 确认密码
+  forget: 忘记密码?
+  login: 登录
+  thirdLogin: 第三方登录
+  phoneLogin: 手机登录
+  qRCodeLogin: 二维码登录
+  register: 注册
+  weChatLogin: 微信登录
+  alipayLogin: 支付宝登录
+  qqLogin: QQ登录
+  weiboLogin: 微博登录
+  phone: 手机号码
+  smsVerifyCode: 短信验证码
+  back: 返回
+  test: 模拟测试
+  tip: 扫码后点击"确认"，即可完成登录
+  definite: 确定
+  loginSuccess: 登录成功
+  registerSuccess: 注册成功
+  tickPrivacy: 请勾选隐私政策
+  readAccept: 我已仔细阅读并接受
+  privacyPolicy: 《隐私政策》
+  getVerifyCode: 获取验证码
+  info: 秒后重新获取
+  usernameReg: 请输入账号
+  passwordReg: 请输入密码
+  verifyCodeReg: 请输入验证码
+  verifyCodeCorrectReg: 请输入正确的验证码
+  verifyCodeSixReg: 请输入6位数字验证码
+  phoneReg: 请输入手机号码
+  phoneCorrectReg: 请输入正确的手机号码格式
+  emailCorrectReg: 请输入正确的邮箱地址格式
+  passwordRuleReg: 密码格式应为8-18位数字、字母、符号的任意两种组合
+  passwordSureReg: 请输入确认密码
+  passwordDifferentReg: 两次密码不一致!
+  passwordUpdateReg: 修改密码成功
+
+welcome:
+  operateLog: 操作日志
+  userAnalysis: 用户分析概览
+  registerUser: 注册人数
+  activeUser: 活跃人数
+  today: 当天
+  days: 天内
+  requestNum: 当天接口请求次数
+  userNum: 用户人数
+  loginTimes: 登录次数
