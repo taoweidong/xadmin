@@ -95,8 +95,8 @@ ASGI_APPLICATION = "server.asgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-REDIS_PASSWORD = "nineven"
-REDIS_HOST = "redis"
+REDIS_PASSWORD = ""
+REDIS_HOST = "127.0.0.1"
 REDIS_PORT = 6379
 DEFAULT_CACHE_ID = 1
 CHANNEL_LAYERS_CACHE_ID = 2
