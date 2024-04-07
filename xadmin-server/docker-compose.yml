@@ -5,8 +5,8 @@ services:
     image: 'bitnami/redis:7.2.4'
     container_name: xadmin-redis
     restart: always
-    environment:
-      - REDIS_PASSWORD=nineven
+#    environment:
+#      - REDIS_PASSWORD=nineven
 
   xadmin-server:
     container_name: xadmin-server

@@ -16,5 +16,5 @@ RUN addgroup --system --gid 1001 nginx \
     && adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 1001 nginx
 
 
-#ENTRYPOINT ["python", "manage.py", "start", "all","-u","nginx"]
-ENTRYPOINT ["/bin/bash", "entrypoint.sh"]
+ENTRYPOINT ["python", "manage.py", "start", "all","-u","nginx"]
+#ENTRYPOINT ["/bin/bash", "entrypoint.sh"]

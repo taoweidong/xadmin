@@ -23,5 +23,5 @@ tsconfig.tsbuildinfo
 
 
 .idea/
-__pycache__
-logs
+*.pyc
+*.log
