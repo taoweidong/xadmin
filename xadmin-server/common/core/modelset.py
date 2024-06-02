@@ -8,6 +8,8 @@ import json
 from typing import Callable
 
 from django.conf import settings
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
@@ -126,18 +128,51 @@ class BaseAction(object):
         return ApiResponse(detail=f"批量操作成功")
 
 
+@method_decorator(name='retrieve',
+                  decorator=swagger_auto_schema(operation_summary='retrieve数据',
+                                                operation_description='retrieve指定数据'))
+@method_decorator(name='list',
+                  decorator=swagger_auto_schema(operation_summary='查询数据', operation_description='查询所有数据'))
+@method_decorator(name='create',
+                  decorator=swagger_auto_schema(operation_summary='新增数据', operation_description='新增数据'))
+@method_decorator(name='update',
+                  decorator=swagger_auto_schema(operation_summary='更新数据', operation_description='更新数据'))
+@method_decorator(name='many_delete',
+                  decorator=swagger_auto_schema(operation_summary='批量删除操作', operation_description='批量删除数据'))
 class OwnerModelSet(BaseAction, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, GenericViewSet):
+    """
+    get:
+    查询返回结果列表
+    """
     pass
 
 
+@method_decorator(name='list',
+                  decorator=swagger_auto_schema(operation_summary='查询数据', operation_description='查询所有数据'))
 class OnlyListModelSet(BaseAction, mixins.ListModelMixin, GenericViewSet):
     pass
 
 
+@method_decorator(name='destroy',
+                  decorator=swagger_auto_schema(operation_summary='删除数据', operation_description='删除指定数据'))
+@method_decorator(name='list',
+                  decorator=swagger_auto_schema(operation_summary='查询数据', operation_description='查询所有数据'))
+@method_decorator(name='create',
+                  decorator=swagger_auto_schema(operation_summary='新增数据', operation_description='新增数据'))
+@method_decorator(name='update',
+                  decorator=swagger_auto_schema(operation_summary='更新数据', operation_description='更新数据'))
+@method_decorator(name='many_delete',
+                  decorator=swagger_auto_schema(operation_summary='批量删除操作', operation_description='批量删除数据'))
 class BaseModelSet(BaseAction, ModelViewSet):
     pass
 
 
 # 只允许读和删除，不允许创建和修改
+@method_decorator(name='destroy',
+                  decorator=swagger_auto_schema(operation_summary='删除数据', operation_description='删除指定数据'))
+@method_decorator(name='list',
+                  decorator=swagger_auto_schema(operation_summary='查询数据', operation_description='查询所有数据'))
+@method_decorator(name='many_delete',
+                  decorator=swagger_auto_schema(operation_summary='批量删除操作', operation_description='批量删除数据'))
 class ListDeleteModelSet(BaseAction, mixins.DestroyModelMixin, ReadOnlyModelViewSet):
     pass

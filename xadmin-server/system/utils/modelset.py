@@ -4,6 +4,8 @@
 # filename : modelset
 # author : ly_13
 # date : 12/24/2023
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 
 from common.core.config import SysConfig, UserConfig
@@ -36,6 +38,8 @@ class ChangeRolePermissionAction(object):
         return ApiResponse(code=1004, detail="数据异常")
 
 
+@method_decorator(name='invalid',
+                  decorator=swagger_auto_schema(operation_summary='配置校验', operation_description='配置校验'))
 class InvalidConfigCacheAction(object):
     def get_object(self):
         raise NotImplementedError('get_object must be overridden')

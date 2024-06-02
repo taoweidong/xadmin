@@ -30,19 +30,9 @@ class DeptFilter(filters.FilterSet):
         fields = ['pk', 'is_active', 'code', 'mode_type', 'auto_bind']
 
 
-# 导入django装饰器
-from django.utils.decorators import method_decorator
-
-
-@method_decorator(name='list',
-                  decorator=swagger_auto_schema(operation_summary='查询数据', operation_description='查询所有数据'))
-@method_decorator(name='create',
-                  decorator=swagger_auto_schema(operation_summary='新增数据', operation_description='新增数据'))
-@method_decorator(name='destroy',
-                  decorator=swagger_auto_schema(operation_summary='删除数据', operation_description='删除指定数据'))
 class DeptView(BaseModelSet, ChangeRolePermissionAction):
     """
-    部门信息管理
+    閮ㄩ棬淇℃伅绠＄悊
     """
     queryset = DeptInfo.objects.all()
     serializer_class = DeptSerializer

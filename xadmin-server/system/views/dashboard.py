@@ -9,6 +9,8 @@ import datetime
 from django.db.models import Count
 from django.db.models.functions import TruncDay
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 
 from common.core.modelset import OwnerModelSet
@@ -38,7 +40,13 @@ def trend_info(queryset, limit_day=30):
     return results, percent, queryset.count()
 
 
+@method_decorator(name='user_login_total',
+                  decorator=swagger_auto_schema(operation_summary='获取用户登录信息',
+                                                operation_description='获取用户登录信息'))
 class DashboardView(OwnerModelSet):
+    """
+    首页看板信息获取
+    """
     queryset = UserLoginLog.objects.all()
     serializer_class = UserLoginLogSerializer
     ordering_fields = ['created_time']
