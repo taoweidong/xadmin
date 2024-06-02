@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-mlq6(#a^2vk!1=7=xhp#$i=o5d%namfs=+b26$m#sh_2rco7j^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 # 如果前端是代理，则可以通过该配置，在系统构建url的时候，获取正确的 scheme
 # 需要在 前端加入该配置  proxy_set_header X-Forwarded-Proto https;
@@ -37,6 +37,8 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    # https://pythondjango.cn/django/applications/4-django-simple-ui-configuration/
+    'simpleui',
     'daphne',  # 支持websocket
     'django.contrib.admin',
     'django.contrib.auth',
@@ -56,6 +58,7 @@ INSTALLED_APPS = [
     'django_celery_results',
     'django_celery_beat',
     'imagekit',
+    "drf_yasg",  # 文档
 ]
 
 MIDDLEWARE = [
@@ -183,7 +186,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'zh-hans'
 
 TIME_ZONE = 'Asia/Shanghai'
 
@@ -196,7 +199,13 @@ AUTH_USER_MODEL = "system.UserInfo"
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# 设置静态文件配置
+STATIC_URL = '/static/'
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, 'static/'),
+)
+
+STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
 
 # Media配置
 MEDIA_URL = "media/"

@@ -62,6 +62,11 @@ def get_request_ident(request):
 
 
 class TempTokenView(APIView):
+    """
+    权限处理
+    get:
+    获取token信息
+    """
     permission_classes = []
     authentication_classes = []
 
