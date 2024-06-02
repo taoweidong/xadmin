@@ -20,6 +20,13 @@ flower_url = f'{settings.CELERY_FLOWER_HOST}:{settings.CELERY_FLOWER_PORT}'
 
 
 class CeleryFlowerView(APIView):
+    """
+    Celery操作接口
+    get:
+    查询接口
+    post:
+    启动接口
+    """
 
     @xframe_options_exempt
     def get(self, request, path):
