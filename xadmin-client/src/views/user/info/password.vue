@@ -3,17 +3,18 @@ import { reactive, ref, watch } from "vue";
 import ReCol from "@/components/ReCol";
 import { FormPasswordProps } from "./utils/types";
 import type { FormRules } from "element-plus";
-import { hasAuth } from "@/router/utils";
 import { isAllEmpty } from "@pureadmin/utils";
 import { zxcvbn } from "@zxcvbn-ts/core";
 import { useI18n } from "vue-i18n";
 import { $t, transformI18n } from "@/plugins/i18n";
 import { REGEXP_PWD } from "@/views/login/utils/rule";
+import { useApiAuth } from "./utils/hook";
 
 defineOptions({
   name: "editUserPassword"
 });
 const { t } = useI18n();
+const { auth } = useApiAuth();
 
 const pwdProgress = [
   { color: "#e74242", text: t("password.veryWeak") },
@@ -157,12 +158,12 @@ watch(
     </el-row>
     <el-form-item>
       <el-popconfirm
-        v-if="hasAuth('update:UserInfoPassword')"
-        :title="t('buttons.hsconfirmdupdate')"
+        v-if="auth.reset"
+        :title="t('buttons.confirmUpdate')"
         @confirm="handleUpdate(password)"
       >
         <template #reference>
-          <el-button>{{ t("buttons.hssave") }}</el-button>
+          <el-button>{{ t("buttons.save") }}</el-button>
         </template>
       </el-popconfirm>
     </el-form-item>

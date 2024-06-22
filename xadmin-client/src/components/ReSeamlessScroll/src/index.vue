@@ -1,13 +1,20 @@
-<script setup lang="ts">
-import { computed, ref, unref, nextTick } from "vue";
-import type { CSSProperties, PropType } from "vue";
+<script lang="ts" setup>
 import {
+  computed,
+  type CSSProperties,
+  nextTick,
+  type PropType,
+  ref,
+  unref
+} from "vue";
+import {
+  templateRef,
   tryOnMounted,
   tryOnUnmounted,
-  templateRef,
   useDebounceFn
 } from "@vueuse/core";
 import * as utilsMethods from "./utils";
+
 const { animationFrame, copyObj } = utilsMethods;
 animationFrame();
 
@@ -301,7 +308,7 @@ function touchMove(e) {
 
 function touchEnd() {
   if (!unref(canTouchScroll)) return;
-  // eslint-disable-next-line prefer-const
+
   let timer: any;
   const direction = unref(options).direction;
   delay.value = 50;
@@ -496,34 +503,34 @@ defineExpose({
 </script>
 
 <template>
-  <div :ref="'wrap' + props.classOption['key']">
+  <div :ref="'wrap' + classOption['key']">
     <div
       v-if="navigation"
-      :style="leftSwitch"
       :class="leftSwitchClass"
+      :style="leftSwitch"
       @click="leftSwitchClick"
     >
       <slot name="left-switch" />
     </div>
     <div
       v-if="navigation"
-      :style="rightSwitch"
       :class="rightSwitchClass"
+      :style="rightSwitch"
       @click="rightSwitchClick"
     >
       <slot name="right-switch" />
     </div>
     <div
-      :ref="'realBox' + props.classOption['key']"
+      :ref="'realBox' + classOption['key']"
       :style="pos"
       @mouseenter="enter"
       @mouseleave="leave"
+      @touchend="touchEnd"
       @touchstart.passive="touchStart"
       @touchmove.passive="touchMove"
-      @touchend="touchEnd"
       @mousewheel.passive="wheel"
     >
-      <div :ref="'slotList' + props.classOption['key']" :style="float">
+      <div :ref="'slotList' + classOption['key']" :style="float">
         <slot />
       </div>
       <div :style="float" v-html="copyHtml" />

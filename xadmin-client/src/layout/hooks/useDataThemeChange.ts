@@ -14,6 +14,7 @@ import {
   lighten,
   toggleTheme
 } from "@pureadmin/theme/dist/browser-utils";
+import { useUserStoreHook } from "@/store/modules/user";
 
 export function useDataThemeChange() {
   const { layoutTheme, layout } = useLayout();
@@ -70,7 +71,9 @@ export function useDataThemeChange() {
     };
 
     if (theme === "default" || theme === "light") {
-      setEpThemeColor(getConfig().EpThemeColor);
+      // setEpThemeColor(getConfig().EpThemeColor);
+      // 当用户自定义主题色之后，保存服务器，默认的主题色会被覆盖，该操作可以修复默认的主题色
+      setEpThemeColor("#409EFF");
     } else {
       const colors = themeColors.value.find(v => v.themeColor === theme);
       setEpThemeColor(colors.color);
@@ -117,6 +120,7 @@ export function useDataThemeChange() {
 
   /** 清空缓存并返回登录页 */
   function onReset() {
+    useUserStoreHook().websocket?.close();
     removeToken();
     storageLocal().clear();
     const { Grey, Weak, MultiTagsCache, EpThemeColor, Layout } = getConfig();

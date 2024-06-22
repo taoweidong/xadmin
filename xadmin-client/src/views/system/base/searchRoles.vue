@@ -5,47 +5,50 @@ import { ReTableSearch } from "@/components/ReTableSearch";
 import { ref } from "vue";
 import { hasGlobalAuth } from "@/router/utils";
 import { searchRoleListApi } from "@/api/system/search";
+import { formatColumnsLabel } from "@/views/system/hooks";
 
-const { t } = useI18n();
+defineOptions({ name: "searchRoles" });
+
+const emit = defineEmits<{
+  (e: "change", ...args: any[]): void;
+}>();
+
+const { t, te } = useI18n();
 
 const selectValue = defineModel({ type: Array<number> });
 const showColumns = ref<TableColumnList>([
   {
-    label: "ID",
     prop: "pk",
     width: 80
   },
   {
-    label: t("role.name"),
     prop: "name"
   },
   {
-    label: t("role.code"),
     prop: "code"
   },
   {
-    label: t("labels.status"),
     prop: "is_active",
     formatter: ({ is_active }) =>
       is_active ? t("labels.active") : t("labels.inactive")
   },
   {
-    label: t("sorts.createdDate"),
     minWidth: 180,
-    prop: "createTime",
+    prop: "created_time",
     formatter: ({ created_time }) =>
       dayjs(created_time).format("YYYY-MM-DD HH:mm:ss")
   }
 ]);
+formatColumnsLabel(showColumns.value, t, te, "systemRole");
 
 const searchKeys = [
   {
     key: "name",
-    label: t("role.name")
+    label: t("systemRole.name")
   },
   {
     key: "code",
-    label: t("role.code")
+    label: t("systemRole.code")
   }
 ];
 </script>
@@ -57,5 +60,10 @@ const searchKeys = [
     :getListApi="searchRoleListApi"
     :searchKeys="searchKeys"
     :showColumns="showColumns"
+    @change="
+      value => {
+        emit('change', value);
+      }
+    "
   />
 </template>

@@ -2,8 +2,7 @@ interface FormItemProps {
   /** ID */
   pk?: number;
   name: string;
-  mode_display?: string;
-  mode_type: number;
+  mode_type: number | object;
   rules: Object[];
   menu: number[];
   description: string;
@@ -13,9 +12,8 @@ interface FormItemProps {
 interface FormProps {
   formInline: FormItemProps;
   fieldLookupsData?: any[];
-  menuPermissionData?: any[];
+  columns?: any[];
   valuesData?: any[];
-  choicesDict?: any[];
   showColumns: any[];
   isAdd?: boolean;
 }

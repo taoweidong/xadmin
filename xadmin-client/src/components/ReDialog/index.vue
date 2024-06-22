@@ -12,9 +12,12 @@ import Fullscreen from "@iconify-icons/ri/fullscreen-fill";
 import ExitFullscreen from "@iconify-icons/ri/fullscreen-exit-fill";
 import { useI18n } from "vue-i18n";
 
+defineOptions({
+  name: "ReDialog"
+});
+
 const fullscreen = ref(false);
 const { t } = useI18n();
-
 const footerButtons = computed(() => {
   return (options: DialogOptions) => {
     return options?.footerButtons?.length > 0
@@ -35,10 +38,11 @@ const footerButtons = computed(() => {
             }
           },
           {
-            label: t("buttons.hssave"),
+            label: t("buttons.save"),
             type: "primary",
             text: true,
             bg: true,
+            popconfirm: options?.popconfirm,
             btnClick: ({ dialog: { options, index } }) => {
               const done = () =>
                 closeDialog(options, index, { command: "sure" });
@@ -89,12 +93,12 @@ function handleClose(
   <el-dialog
     v-for="(options, index) in dialogStore"
     :key="index"
-    v-model="options.visible"
-    :fullscreen="fullscreen ? true : options?.fullscreen ? true : false"
-    class="pure-dialog"
     v-bind="options"
-    @closed="handleClose(options, index)"
+    v-model="options.visible"
+    :fullscreen="fullscreen ? true : options?.fullscreen"
+    class="pure-dialog"
     @closeAutoFocus="eventsCallBack('closeAutoFocus', options, index)"
+    @closed="handleClose(options, index)"
     @openAutoFocus="eventsCallBack('openAutoFocus', options, index)"
     @opened="eventsCallBack('open', options, index)"
   >
@@ -124,7 +128,6 @@ function handleClose(
           "
         >
           <IconifyIconOffline
-            class="pure-dialog-svg"
             :icon="
               options?.fullscreen
                 ? ExitFullscreen
@@ -132,6 +135,7 @@ function handleClose(
                   ? ExitFullscreen
                   : Fullscreen
             "
+            class="pure-dialog-svg"
           />
         </i>
       </div>
@@ -141,8 +145,8 @@ function handleClose(
       />
     </template>
     <component
-      v-bind="options?.props"
       :is="options.contentRenderer({ options, index })"
+      v-bind="options?.props"
       @close="args => handleClose(options, index, args)"
     />
     <!-- footer -->
@@ -151,19 +155,34 @@ function handleClose(
         <component :is="options?.footerRenderer({ options, index })" />
       </template>
       <span v-else>
-        <el-button
-          v-for="(btn, key) in footerButtons(options)"
-          :key="key"
-          v-bind="btn"
-          @click="
-            btn.btnClick({
-              dialog: { options, index },
-              button: { btn, index: key }
-            })
-          "
-        >
-          {{ btn?.label }}
-        </el-button>
+        <template v-for="(btn, key) in footerButtons(options)" :key="key">
+          <el-popconfirm
+            v-if="btn.popconfirm"
+            v-bind="btn.popconfirm"
+            @confirm="
+              btn.btnClick({
+                dialog: { options, index },
+                button: { btn, index: key }
+              })
+            "
+          >
+            <template #reference>
+              <el-button v-bind="btn">{{ btn?.label }}</el-button>
+            </template>
+          </el-popconfirm>
+          <el-button
+            v-else
+            v-bind="btn"
+            @click="
+              btn.btnClick({
+                dialog: { options, index },
+                button: { btn, index: key }
+              })
+            "
+          >
+            {{ btn?.label }}
+          </el-button>
+        </template>
       </span>
     </template>
   </el-dialog>

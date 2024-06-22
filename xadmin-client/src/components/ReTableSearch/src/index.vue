@@ -1,19 +1,29 @@
 <script lang="ts" setup>
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useColumns } from "./hooks";
 import { FormItemProps } from "./types";
 import { ClickOutside as vClickOutside } from "element-plus";
+
+defineOptions({
+  name: "ReTableSearch"
+});
 
 const props = withDefaults(defineProps<FormItemProps>(), {
   showColumns: () => [],
   sortOptions: () => [],
   searchKeys: () => [],
   isTree: () => false,
-  getListApi: Function
+  getListApi: Function,
+  valueProps: () => ({
+    value: "pk",
+    label: "name"
+  })
 });
 
-const selectValue = defineModel({ type: Array<number> });
-
+const selectValue = defineModel({ type: Array<object> });
+const emit = defineEmits<{
+  (e: "change", ...args: any[]): void;
+}>();
 const columns = ref([
   {
     type: "selection",
@@ -45,6 +55,7 @@ const {
   tableRef,
   props.getListApi,
   props.isTree,
+  props.valueProps,
   selectValue
 );
 
@@ -58,8 +69,19 @@ onMounted(() => {
   props.showColumns.forEach(item => {
     columns.value.push(item);
   });
-  onSearch();
+  // onSearch();
 });
+
+watch(
+  () => selectValue.value,
+  () => {
+    emit("change", selectValue.value);
+  },
+  {
+    deep: true,
+    immediate: true
+  }
+);
 </script>
 
 <template>
@@ -68,26 +90,34 @@ onMounted(() => {
     v-model="selectValue"
     v-click-outside="handleClickOutSide"
     :max-collapse-tags="10"
+    :value-key="props.valueProps.value"
     class="w-full"
     clearable
     collapse-tags
     collapse-tags-tooltip
     multiple
-    value-key="pk"
     @clear="onClear"
     @visibleChange="val => (selectVisible = val)"
+    @visible-change="
+      vs => {
+        if (vs) onSearch();
+      }
+    "
     @remove-tag="removeTag"
   >
+    <template #label="{ value }">
+      <el-tag type="primary">{{ value[props.valueProps.label] }}</el-tag>
+    </template>
     <template #empty>
-      <div class="w-max[800px] m-4">
+      <div class="max-w-[1000px] m-4 min-w-[800px]">
         <el-form
           ref="formRef"
           :inline="true"
           :model="form"
-          class="search-form bg-bg_color w-[99/100] pl-8 pt-[12px] overflow-auto"
+          class="search-form bg-bg_color pl-8 pt-[12px] overflow-auto"
         >
           <el-form-item
-            v-for="item in props.searchKeys.filter(x => {
+            v-for="item in searchKeys.filter(x => {
               return !x.value;
             })"
             :key="item.key"
@@ -151,7 +181,7 @@ onMounted(() => {
               type="success"
               @click="onSearch(true)"
             >
-              {{ t("buttons.hsreload") }}
+              {{ t("buttons.reload") }}
             </el-button>
           </el-space>
         </div>

@@ -1,20 +1,19 @@
-import { http } from "@/utils/http";
-import type { Result } from "@/api/types";
+import { BaseApi } from "@/api/base";
+import type { BaseResult, DataListResult } from "@/api/types";
 
-export const getModelLabelFieldListApi = (data?: object) => {
-  return http.request<Result>("get", "/api/system/field", {
-    params: data
-  });
-};
+class ModelLabelFieldApi extends BaseApi {
+  lookups = (params?: object) => {
+    return this.request<DataListResult>(
+      "get",
+      params,
+      {},
+      `${this.baseApi}/lookups`
+    );
+  };
 
-export const getModelLabelFieldLookupsListApi = (params?: object) => {
-  return http.request<Result>("get", "/api/system/field/lookups", {
-    params: params
-  });
-};
+  sync = (params?: object) => {
+    return this.request<BaseResult>("get", params, {}, `${this.baseApi}/sync`);
+  };
+}
 
-export const syncModelLabelFieldApi = (params?: object) => {
-  return http.request<Result>("get", "/api/system/field/sync", {
-    params: params
-  });
-};
+export const modelLabelFieldApi = new ModelLabelFieldApi("/api/system/field");

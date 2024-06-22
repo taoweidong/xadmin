@@ -1,12 +1,14 @@
 import datetime
+import json
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from pilkit.processors import ResizeToFill
+from rest_framework.utils import encoders
 
-from common.core.models import upload_directory_path, DbAuditModel, DbUuidModel
+from common.core.models import upload_directory_path, DbAuditModel, DbUuidModel, DbCharModel
 from common.fields.image import ProcessedImageField
 
 
@@ -15,6 +17,8 @@ class ModelLabelField(DbAuditModel, DbUuidModel):
         TEXT = 'value.text', _('文本格式')
         JSON = 'value.json', _('json格式')
         ALL = 'value.all', _('全部数据')
+        DATETIME = 'value.datetime', _('日期时间')
+        DATETIME_RANGE = 'value.datetime.range', _('日期时间区间选择器')
         DATE = 'value.date', _('距离当前时间多少秒')
         OWNER = 'value.user.id', _('本人ID')
         OWNER_DEPARTMENT = 'value.user.dept.id', _('本部门ID')
@@ -30,7 +34,8 @@ class ModelLabelField(DbAuditModel, DbUuidModel):
         DATA = 1, _("数据权限")
 
     field_type = models.SmallIntegerField(choices=FieldChoices, default=FieldChoices.DATA, verbose_name="字段类型")
-    parent = models.ForeignKey(to='ModelLabelField', on_delete=models.CASCADE, null=True, blank=True)
+    parent = models.ForeignKey(to='ModelLabelField', on_delete=models.CASCADE, null=True, blank=True,
+                               verbose_name="上级节点")
     name = models.CharField(verbose_name="模型/字段数值", max_length=128)
     label = models.CharField(verbose_name="模型/字段名称", max_length=128)
 
@@ -40,7 +45,7 @@ class ModelLabelField(DbAuditModel, DbUuidModel):
         verbose_name_plural = "模型字段"
 
     def __str__(self):
-        return f"{self.name} {self.label}"
+        return f"{self.label}({self.name})"
 
 
 class ModeTypeAbstract(models.Model):
@@ -86,25 +91,26 @@ class UserInfo(DbAuditModel, AbstractUser, ModeTypeAbstract):
         return super().delete(using, keep_parents)
 
     def __str__(self):
-        return f"{self.username}"
+        return f"{self.nickname}({self.username})"
 
 
 class MenuMeta(DbAuditModel, DbUuidModel):
-    title = models.CharField(verbose_name="菜单名称", max_length=256, null=True, blank=True)
-    icon = models.CharField(verbose_name="菜单图标", max_length=256, null=True, blank=True)
-    r_svg_name = models.CharField(verbose_name="菜单右侧额外图标", max_length=256, null=True, blank=True,
+    title = models.CharField(verbose_name="菜单名称", max_length=255, null=True, blank=True)
+    icon = models.CharField(verbose_name="菜单图标", max_length=255, null=True, blank=True)
+    r_svg_name = models.CharField(verbose_name="菜单右侧额外图标", max_length=255, null=True, blank=True,
                                   help_text='菜单右侧额外图标iconfont名称，目前只支持iconfont')
     is_show_menu = models.BooleanField(verbose_name="是否显示该菜单", default=True)
     is_show_parent = models.BooleanField(verbose_name="是否显示父级菜单", default=False)
     is_keepalive = models.BooleanField(verbose_name="是否开启页面缓存", default=False,
                                        help_text='开启后，会保存该页面的整体状态，刷新后会清空状态')
-    frame_url = models.CharField(verbose_name="内嵌的iframe链接地址", max_length=256, null=True, blank=True)
+    frame_url = models.CharField(verbose_name="内嵌的iframe链接地址", max_length=255, null=True, blank=True)
     frame_loading = models.BooleanField(verbose_name="内嵌的iframe页面是否开启首次加载动画", default=False)
 
-    transition_enter = models.CharField(verbose_name="当前页面进场动画", max_length=256, null=True, blank=True)
-    transition_leave = models.CharField(verbose_name="当前页面离场动画", max_length=256, null=True, blank=True)
+    transition_enter = models.CharField(verbose_name="当前页面进场动画", max_length=255, null=True, blank=True)
+    transition_leave = models.CharField(verbose_name="当前页面离场动画", max_length=255, null=True, blank=True)
 
     is_hidden_tag = models.BooleanField(verbose_name="当前菜单名称或自定义信息禁止添加到标签页", default=False)
+    fixed_tag = models.BooleanField(verbose_name="当前菜单名称是否固定显示在标签页且不可关闭", default=False)
     dynamic_level = models.IntegerField(verbose_name="显示标签页最大数量", default=1)
 
     class Meta:
@@ -131,18 +137,19 @@ class Menu(DbAuditModel, DbUuidModel):
 
     parent = models.ForeignKey(to='Menu', on_delete=models.SET_NULL, verbose_name="父节点", null=True, blank=True)
     menu_type = models.SmallIntegerField(choices=MenuChoices, default=MenuChoices.DIRECTORY, verbose_name="节点类型")
-    name = models.CharField(verbose_name="组件英文名称", max_length=128, unique=True)
+    name = models.CharField(verbose_name="组件英文名称 或 权限标识", max_length=128, unique=True)
     rank = models.IntegerField(verbose_name="菜单顺序", default=9999)
-    path = models.CharField(verbose_name="路由地址", max_length=256, help_text='权限类型时，该参数为请求的URL')
-    component = models.CharField(verbose_name="组件地址", max_length=256, null=True, blank=True,
-                                 help_text='权限类型时，该参数为请求方式')
+    path = models.CharField(verbose_name="路由地址 或 后端权限路由", max_length=255)
+    component = models.CharField(verbose_name="组件地址", max_length=255, null=True, blank=True)
     is_active = models.BooleanField(verbose_name="是否启用该菜单", default=True)
     meta = models.OneToOneField(to=MenuMeta, on_delete=models.CASCADE, verbose_name="菜单元数据")
     model = models.ManyToManyField(to=ModelLabelField, verbose_name="绑定模型", null=True, blank=True)
 
-    # permission_marking = models.CharField(verbose_name="权限标识", max_length=256)
-    # api_route = models.CharField(max_length=256, verbose_name="后端权限路由")
-    # method = models.CharField(choices=MethodChoices, default='GET', verbose_name="请求方式", max_length=10)
+    # permission_marking = models.CharField(verbose_name="权限标识", max_length=255)
+    # api_route = models.CharField(verbose_name="后端权限路由", max_length=255, null=True, blank=True)
+    method = models.CharField(choices=MethodChoices, null=True, blank=True, verbose_name="请求方式", max_length=10)
+
+    # api_auth_access = models.BooleanField(verbose_name="是否授权访问，否的话可以匿名访问后端路由", default=True)
 
     def delete(self, using=None, keep_parents=False):
         if self.meta:
@@ -155,11 +162,11 @@ class Menu(DbAuditModel, DbUuidModel):
         ordering = ("-created_time",)
 
     def __str__(self):
-        return f"{self.name}-{self.menu_type}-{self.meta.title}"
+        return f"{self.meta.title}-{self.get_menu_type_display()}({self.name})"
 
 
 class DataPermission(DbAuditModel, ModeTypeAbstract, DbUuidModel):
-    name = models.CharField(verbose_name="数据权限名称", max_length=256, unique=True)
+    name = models.CharField(verbose_name="数据权限名称", max_length=255, unique=True)
     rules = models.JSONField(verbose_name="规则", max_length=512, default=list)
     is_active = models.BooleanField(verbose_name="是否启用", default=True)
     menu = models.ManyToManyField(to=Menu, verbose_name="权限菜单", null=True, blank=True)
@@ -169,7 +176,7 @@ class DataPermission(DbAuditModel, ModeTypeAbstract, DbUuidModel):
         verbose_name_plural = "数据权限"
 
     def __str__(self):
-        return f"{self.name}-{self.is_active}"
+        return f"{self.name}"
 
 
 class UserRole(DbAuditModel, DbUuidModel):
@@ -184,10 +191,10 @@ class UserRole(DbAuditModel, DbUuidModel):
         ordering = ("-created_time",)
 
     def __str__(self):
-        return f"{self.name}-{self.created_time}"
+        return f"{self.name}({self.code})"
 
 
-class FieldPermission(DbAuditModel, DbUuidModel):
+class FieldPermission(DbAuditModel, DbCharModel):
     role = models.ForeignKey(UserRole, on_delete=models.CASCADE, verbose_name="角色")
     menu = models.ForeignKey(Menu, on_delete=models.CASCADE, verbose_name="菜单")
     field = models.ManyToManyField(ModelLabelField, verbose_name="字段", null=True, blank=True)
@@ -198,6 +205,10 @@ class FieldPermission(DbAuditModel, DbUuidModel):
         ordering = ("-created_time",)
         unique_together = ("role", "menu")
 
+    def save(self, *args, **kwargs):
+        self.id = f"{self.role.pk}-{self.menu.pk}"
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.pk}-{self.role.name}-{self.created_time}"
 
@@ -205,7 +216,7 @@ class FieldPermission(DbAuditModel, DbUuidModel):
 class DeptInfo(DbAuditModel, ModeTypeAbstract, DbUuidModel):
     name = models.CharField(verbose_name="部门名称", max_length=128)
     code = models.CharField(max_length=128, verbose_name="部门标识", unique=True)
-    parent = models.ForeignKey(to='DeptInfo', on_delete=models.SET_NULL, verbose_name="父节点", null=True, blank=True,
+    parent = models.ForeignKey(to='DeptInfo', on_delete=models.SET_NULL, verbose_name="上级部门", null=True, blank=True,
                                related_query_name="parent_query")
     roles = models.ManyToManyField(to="UserRole", verbose_name="角色", blank=True, null=True)
     rules = models.ManyToManyField(to="DataPermission", verbose_name="数据权限", blank=True, null=True)
@@ -228,12 +239,15 @@ class DeptInfo(DbAuditModel, ModeTypeAbstract, DbUuidModel):
                 if dept.get(pk):
                     dept_list.append(dept.get(pk))
                     cls.recursion_dept_info(dept.get(pk), dept_all_list, dept_list, is_parent)
-        return list(set(dept_list))
+        return json.loads(json.dumps(list(set(dept_list)), cls=encoders.JSONEncoder))
 
     class Meta:
         verbose_name = "部门信息"
         verbose_name_plural = "部门信息"
         ordering = ("-rank", "-created_time",)
+
+    def __str__(self):
+        return f"{self.name}({self.pk})"
 
 
 class UserLoginLog(DbAuditModel):
@@ -298,6 +312,9 @@ class UploadFile(DbAuditModel):
         verbose_name = "上传的文件"
         verbose_name_plural = "上传的文件"
 
+    def __str__(self):
+        return f"{self.filename}"
+
 
 class NoticeMessage(DbAuditModel):
     class NoticeChoices(models.IntegerChoices):
@@ -308,15 +325,15 @@ class NoticeMessage(DbAuditModel):
         ROLE = 4, _("角色通知")
 
     class LevelChoices(models.TextChoices):
-        DEFAULT = '', _("普通通知")
+        DEFAULT = 'info', _("普通通知")
         PRIMARY = 'primary', _("一般通知")
         SUCCESS = 'success', _("成功通知")
         DANGER = 'danger', _("重要通知")
 
     notice_user = models.ManyToManyField(to=UserInfo, through="NoticeUserRead", null=True, blank=True,
-                                         through_fields=('notice', 'owner'), verbose_name="通知的人")
-    notice_dept = models.ManyToManyField(to=DeptInfo, null=True, blank=True, verbose_name="通知的人部门")
-    notice_role = models.ManyToManyField(to=UserRole, null=True, blank=True, verbose_name="通知的人角色")
+                                         through_fields=('notice', 'owner'), verbose_name="通知的用户")
+    notice_dept = models.ManyToManyField(to=DeptInfo, null=True, blank=True, verbose_name="通知的部门")
+    notice_role = models.ManyToManyField(to=UserRole, null=True, blank=True, verbose_name="通知的角色")
     level = models.CharField(verbose_name='消息级别', choices=LevelChoices, default=LevelChoices.DEFAULT,
                              max_length=20)
     notice_type = models.SmallIntegerField(verbose_name="消息类型", choices=NoticeChoices, default=NoticeChoices.USER)
@@ -348,12 +365,12 @@ class NoticeMessage(DbAuditModel):
         return super().delete(using, keep_parents)
 
     def __str__(self):
-        return f"{self.title}-{self.created_time}-{self.get_notice_type_display()}"
+        return f"{self.title}-{self.get_notice_type_display()}"
 
 
 class NoticeUserRead(DbAuditModel):
-    owner = models.ForeignKey(to=UserInfo, on_delete=models.CASCADE)
-    notice = models.ForeignKey(NoticeMessage, on_delete=models.CASCADE)
+    owner = models.ForeignKey(to=UserInfo, on_delete=models.CASCADE, verbose_name="用户")
+    notice = models.ForeignKey(NoticeMessage, on_delete=models.CASCADE, verbose_name="消息公告")
     unread = models.BooleanField(verbose_name='是否未读', default=True, blank=False, db_index=True)
 
     class Meta:
@@ -376,7 +393,7 @@ class BaseConfig(DbAuditModel):
 
 
 class SystemConfig(BaseConfig, DbUuidModel):
-    key = models.CharField(max_length=256, unique=True, verbose_name="配置名称")
+    key = models.CharField(max_length=255, unique=True, verbose_name="配置名称")
     inherit = models.BooleanField(default=False, verbose_name="允许用户继承该配置")
 
     class Meta:
@@ -389,7 +406,7 @@ class SystemConfig(BaseConfig, DbUuidModel):
 
 class UserPersonalConfig(BaseConfig):
     owner = models.ForeignKey(to=UserInfo, verbose_name="用户ID", on_delete=models.CASCADE)
-    key = models.CharField(max_length=256, verbose_name="配置名称")
+    key = models.CharField(max_length=255, verbose_name="配置名称")
 
     class Meta:
         verbose_name = '个人配置项'

@@ -39,7 +39,7 @@ import Check from "@iconify-icons/ep/check";
 import User from "@iconify-icons/ri/user-3-fill";
 import Info from "@iconify-icons/ri/information-line";
 import { getTempTokenApi } from "@/api/auth";
-import { debounce } from "@pureadmin/utils";
+import { cloneDeep, debounce } from "@pureadmin/utils";
 import { useEventListener } from "@vueuse/core";
 
 defineOptions({
@@ -66,8 +66,8 @@ const { title, getDropdownItemStyle, getDropdownItemClass } = useNav();
 const { locale, translationCh, translationEn } = useTranslationLang();
 
 const ruleForm = reactive({
-  username: "admin",
-  password: "admin123",
+  username: "",
+  password: "",
   token: "",
   captcha_key: "",
   captcha_code: ""
@@ -100,26 +100,28 @@ const initToken = () => {
 
 const onLogin = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
-  await formEl.validate((valid, fields) => {
+  await formEl.validate(valid => {
     if (valid) {
       loading.value = true;
       useUserStoreHook()
-        .loginByUsername(ruleForm)
-        .then(() => {
-          initRouter().then(() => {
-            disabled.value = true;
-            router
-              .push(getTopMenu(true).path)
-              .then(() => {
-                message(transformI18n($t("login.loginSuccess")), {
-                  type: "success"
-                });
-              })
-              .finally(() => {
+        .loginByUsername(cloneDeep(ruleForm))
+        .then(res => {
+          if (res.code === 1000) {
+            message(transformI18n($t("login.loginSuccess")), {
+              type: "success"
+            });
+            initRouter().then(() => {
+              disabled.value = true;
+              router.push(getTopMenu(true).path).finally(() => {
                 disabled.value = false;
               });
-          });
-          loading.value = false;
+            });
+            loading.value = false;
+          } else {
+            message(res.detail, {
+              type: "warning"
+            });
+          }
         })
         .catch(err => {
           message(err.detail, {
@@ -131,7 +133,6 @@ const onLogin = async (formEl: FormInstance | undefined) => {
         .finally(() => (loading.value = false));
     } else {
       loading.value = false;
-      return fields;
     }
   });
 };
@@ -152,6 +153,8 @@ function onkeypress({ code }: KeyboardEvent) {
 onMounted(() => {
   window.document.addEventListener("keypress", onkeypress);
   initToken();
+  useUserStoreHook().SET_ISREMEMBERED(checked.value);
+  useUserStoreHook().SET_LOGINDAY(loginDay.value);
 });
 
 onBeforeUnmount(() => {

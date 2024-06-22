@@ -7,6 +7,12 @@ import { ref } from "vue";
 import { hasGlobalAuth } from "@/router/utils";
 import { searchMenuListApi } from "@/api/system/search";
 
+defineOptions({ name: "searchMenus" });
+
+const emit = defineEmits<{
+  (e: "change", ...args: any[]): void;
+}>();
+
 const { t } = useI18n();
 
 const selectValue = defineModel({ type: Array<number> });
@@ -27,7 +33,7 @@ const showColumns = ref<TableColumnList>([
   },
   {
     label: t("menu.type"),
-    prop: "menu_type_display",
+    prop: "menu_type.label",
     width: 90
   },
   {
@@ -90,5 +96,10 @@ const sortOptions = [
     :searchKeys="searchKeys"
     :showColumns="showColumns"
     :sortOptions="sortOptions"
+    @change="
+      value => {
+        emit('change', value);
+      }
+    "
   />
 </template>

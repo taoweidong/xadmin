@@ -10,8 +10,8 @@ from django.db.models import Count
 from django.db.models.functions import TruncDay
 from django.utils import timezone
 from rest_framework.decorators import action
+from rest_framework.viewsets import GenericViewSet
 
-from common.core.modelset import OwnerModelSet
 from common.core.response import ApiResponse
 from system.models import UserLoginLog, UserInfo, OperationLog
 from system.utils.serializer import UserLoginLogSerializer
@@ -38,7 +38,8 @@ def trend_info(queryset, limit_day=30):
     return results, percent, queryset.count()
 
 
-class DashboardView(OwnerModelSet):
+class DashboardView(GenericViewSet):
+    """面板统计信息"""
     queryset = UserLoginLog.objects.all()
     serializer_class = UserLoginLogSerializer
     ordering_fields = ['created_time']
@@ -55,11 +56,11 @@ class DashboardView(OwnerModelSet):
 
     @action(methods=['GET'], detail=False, queryset=UserInfo.objects.all(), url_path='user-registered-trend')
     def user_registered_trend(self, request, *args, **kwargs):
-        return ApiResponse(results=trend_info(self.filter_queryset(self.get_queryset()))[0])
+        return ApiResponse(data=trend_info(self.filter_queryset(self.get_queryset()))[0])
 
     @action(methods=['GET'], detail=False, url_path='user-login-trend')
     def user_login_trend(self, request, *args, **kwargs):
-        return ApiResponse(results=trend_info(self.filter_queryset(self.get_queryset()))[0])
+        return ApiResponse(data=trend_info(self.filter_queryset(self.get_queryset()))[0])
 
     @action(methods=['GET'], detail=False, queryset=OperationLog.objects.all(), url_path='today-operate-total')
     def today_operate_total(self, request, *args, **kwargs):
@@ -79,4 +80,4 @@ class DashboardView(OwnerModelSet):
             x_day_active_user = queryset.filter(last_login__gte=x_day).values('last_login').annotate(
                 count=Count('pk', distinct=True)).count()
             results.append([date, x_day_register_user, x_day_active_user])
-        return ApiResponse(results=results)
+        return ApiResponse(data=results)

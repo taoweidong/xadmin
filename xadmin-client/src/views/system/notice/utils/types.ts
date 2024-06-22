@@ -17,14 +17,11 @@ interface FormItemProps {
   owner_info?: Owner;
   publish?: boolean;
   level?: "primary" | "success" | "warning" | "danger" | "info";
-  notice_type_display?: string;
   title?: string;
   message?: string;
-  notice_type?: number;
+  notice_type?: number | object;
   user_count?: number;
   extra_json?: {};
-  levelChoices?: any[];
-  noticeChoices?: any[];
   files?: any[];
   notice_user?: any[];
   notice_dept?: any[];
@@ -38,7 +35,10 @@ interface ListItem {
 
 interface FormProps {
   formInline: FormItemProps;
-  showColumns: any[];
+  levelChoices?: any[];
+  noticeChoices?: any[];
+  showColumns?: any[];
+  columns?: any[];
   isAdd?: boolean;
 }
 

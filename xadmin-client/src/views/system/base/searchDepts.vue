@@ -5,58 +5,54 @@ import { ReTableSearch } from "@/components/ReTableSearch";
 import { searchDeptListApi } from "@/api/system/search";
 import { ref } from "vue";
 import { hasGlobalAuth } from "@/router/utils";
+import { formatColumnsLabel } from "@/views/system/hooks";
 
-const { t } = useI18n();
+defineOptions({ name: "searchDepts" });
+
+const emit = defineEmits<{
+  (e: "change", ...args: any[]): void;
+}>();
+
+const { t, te } = useI18n();
 
 const selectValue = defineModel({ type: Array<number> });
 
 const showColumns = ref<TableColumnList>([
   {
-    label: t("dept.name"),
     prop: "name",
     align: "left",
-    minWidth: 300
+    minWidth: 200
   },
   {
-    label: t("labels.id"),
     prop: "pk"
   },
   {
-    label: t("dept.code"),
     prop: "code"
   },
   {
-    label: t("labels.status"),
     prop: "is_active",
     formatter: ({ is_active }) =>
       is_active ? t("labels.active") : t("labels.inactive")
   },
   {
-    label: t("dept.userCount"),
     prop: "user_count"
   },
   {
-    label: t("dept.autoBind"),
-    prop: "mobile",
-    formatter: ({ auto_bind }) =>
-      auto_bind ? t("labels.enable") : t("labels.disable")
-  },
-  {
-    label: t("sorts.createdDate"),
-    prop: "createTime",
+    prop: "created_time",
     formatter: ({ created_time }) =>
       dayjs(created_time).format("YYYY-MM-DD HH:mm:ss")
   }
 ]);
+formatColumnsLabel(showColumns.value, t, te, "systemDept");
 
 const searchKeys = [
   {
     key: "name",
-    label: t("dept.name")
+    label: t("systemDept.name")
   },
   {
     key: "code",
-    label: t("dept.code")
+    label: t("systemDept.code")
   }
 ];
 </script>
@@ -69,5 +65,10 @@ const searchKeys = [
     :isTree="true"
     :searchKeys="searchKeys"
     :showColumns="showColumns"
+    @change="
+      value => {
+        emit('change', value);
+      }
+    "
   />
 </template>

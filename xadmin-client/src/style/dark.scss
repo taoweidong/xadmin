@@ -25,7 +25,8 @@ html.dark {
     background: var(--el-bg-color) !important;
   }
 
-  .app-main {
+  .app-main,
+  .app-main-nofixed-header {
     background: #020409 !important;
   }
 
@@ -53,10 +54,26 @@ html.dark {
           background-color: rgb(255 255 255 / 12%);
         }
       }
+
+      .chrome-tab {
+        .tag-title {
+          color: #666;
+        }
+
+        &:hover {
+          .chrome-tab__bg {
+            color: #333;
+          }
+
+          .tag-title {
+            color: #adadad;
+          }
+        }
+      }
     }
   }
 
-  /* 项目配置面板 */
+  /* 系统配置面板 */
   .right-panel-items {
     .el-divider__text {
       --el-bg-color: var(--el-bg-color);

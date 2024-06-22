@@ -4,9 +4,11 @@ import { useEpThemeStoreHook } from "@/store/modules/epTheme";
 import {
   computed,
   defineComponent,
+  getCurrentInstance,
   nextTick,
   type PropType,
   ref,
+  unref,
   watch
 } from "vue";
 import {
@@ -17,11 +19,11 @@ import {
   isFunction
 } from "@pureadmin/utils";
 
-import DragIcon from "./svg/drag.svg?component";
-import ExpandIcon from "./svg/expand.svg?component";
-import RefreshIcon from "./svg/refresh.svg?component";
-import SettingIcon from "./svg/settings.svg?component";
-import CollapseIcon from "./svg/collapse.svg?component";
+import DragIcon from "@/assets/table-bar/drag.svg?component";
+import ExpandIcon from "@/assets/table-bar/expand.svg?component";
+import RefreshIcon from "@/assets/table-bar/refresh.svg?component";
+import SettingIcon from "@/assets/table-bar/settings.svg?component";
+import CollapseIcon from "@/assets/table-bar/collapse.svg?component";
 import { useI18n } from "vue-i18n";
 
 const props = {
@@ -42,6 +44,10 @@ const props = {
   isExpandAll: {
     type: Boolean,
     default: true
+  },
+  tableKey: {
+    type: [String, Number] as PropType<string | number>,
+    default: "0"
   }
 };
 
@@ -54,18 +60,21 @@ export default defineComponent({
     const loading = ref(false);
     const checkAll = ref(true);
     const isIndeterminate = ref(false);
+    const instance = getCurrentInstance()!;
     const isExpandAll = ref(props.isExpandAll);
-    const filterColumns = ref(
-      cloneDeep(props?.columns).filter(column =>
+    const filterColumns = computed(() => {
+      return cloneDeep(props?.columns).filter(column =>
         isBoolean(column?.hide)
           ? !column.hide
           : !(isFunction(column?.hide) && column?.hide())
-      )
-    );
+      );
+    });
     const checkedColumns = ref(
-      getKeyList(cloneDeep(filterColumns.value), "label")
+      getKeyList(cloneDeep(filterColumns.value ?? []), "label")
     );
-    const checkColumnList = ref(getKeyList(cloneDeep(props?.columns), "label"));
+    const checkColumnList = ref(
+      getKeyList(cloneDeep(props?.columns ?? []), "label")
+    );
     const dynamicColumns = ref(cloneDeep(props?.columns));
     const { t } = useI18n();
 
@@ -149,8 +158,10 @@ export default defineComponent({
       checkAll.value = true;
       isIndeterminate.value = false;
       dynamicColumns.value = cloneDeep(props?.columns);
-      checkColumnList.value = [];
-      checkColumnList.value = getKeyList(cloneDeep(props?.columns), "label");
+      checkColumnList.value = getKeyList(
+        cloneDeep(props?.columns ?? []),
+        "label"
+      );
       checkedColumns.value = getKeyList(
         cloneDeep(filterColumns.value),
         "label"
@@ -189,9 +200,9 @@ export default defineComponent({
     const rowDrop = (event: { preventDefault: () => void }) => {
       event.preventDefault();
       nextTick(() => {
-        const wrapper: HTMLElement = document.querySelector(
-          ".el-checkbox-group>div"
-        );
+        const wrapper: HTMLElement = (
+          instance?.proxy?.$refs[`GroupRef${unref(props.tableKey)}`] as any
+        ).$el.firstElementChild;
         Sortable.create(wrapper, {
           animation: 300,
           handle: ".drag-btn",
@@ -311,13 +322,14 @@ export default defineComponent({
                     onChange={value => handleCheckAllChange(value)}
                   />
                   <el-button type="primary" link onClick={() => onReset()}>
-                    {t("buttons.hsreset")}
+                    {t("buttons.reset")}
                   </el-button>
                 </div>
 
                 <div class="pt-[6px] pl-[11px]">
                   <el-scrollbar max-height="36vh">
                     <el-checkbox-group
+                      ref={`GroupRef${unref(props.tableKey)}`}
                       modelValue={checkedColumns.value}
                       onChange={value => handleCheckedColumnsChange(value)}
                     >

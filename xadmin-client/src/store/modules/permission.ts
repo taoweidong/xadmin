@@ -1,10 +1,33 @@
 import { defineStore } from "pinia";
-import { store } from "@/store";
-import type { cacheType } from "./types";
-import { constantMenus } from "@/router";
-import { debounce, getKeyList } from "@pureadmin/utils";
+import {
+  ascending,
+  type cacheType,
+  constantMenus,
+  debounce,
+  filterNoPermissionTree,
+  filterTree,
+  formatFlatteningRoutes,
+  getKeyList,
+  store
+} from "../utils";
 import { useMultiTagsStoreHook } from "./multiTags";
-import { ascending, filterNoPermissionTree, filterTree } from "@/router/utils";
+
+function getGlobalAuths(arr: any[]) {
+  let res = [];
+
+  function deep(arr: any[]) {
+    arr.forEach(item => {
+      let auths = item?.meta?.auths;
+      if (auths?.length > 0) {
+        res = res.concat(auths);
+      }
+      item.children && deep(item.children);
+    });
+  }
+
+  deep(arr);
+  return res;
+}
 
 export const usePermissionStore = defineStore({
   id: "pure-permission",
@@ -13,9 +36,12 @@ export const usePermissionStore = defineStore({
     constantMenus,
     // 整体路由生成的菜单（静态、动态）
     wholeMenus: [],
+    // 整体路由（一维数组格式）
+    flatteningRoutes: [],
     // 缓存页面keepAlive
     cachePageList: [],
-    routes: []
+    // 全局的授权
+    metaAuths: []
   }),
   actions: {
     /** 组装整体路由生成的菜单 */
@@ -23,7 +49,10 @@ export const usePermissionStore = defineStore({
       this.wholeMenus = filterNoPermissionTree(
         filterTree(ascending(this.constantMenus.concat(routes)))
       );
-      this.routes = this.constantMenus.concat(routes);
+      this.flatteningRoutes = formatFlatteningRoutes(
+        this.constantMenus.concat(routes)
+      );
+      this.metaAuths = getGlobalAuths(this.constantMenus.concat(routes));
     },
     cacheOperate({ mode, name }: cacheType) {
       const delIndex = this.cachePageList.findIndex(v => v === name);
@@ -57,6 +86,8 @@ export const usePermissionStore = defineStore({
     clearAllCachePage() {
       this.wholeMenus = [];
       this.cachePageList = [];
+      this.flatteningRoutes = [];
+      this.metaAuths = [];
     }
   }
 });

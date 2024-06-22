@@ -15,6 +15,10 @@ from pathlib import Path
 
 from celery.schedules import crontab
 
+try:
+    from config import *
+except ImportError:
+    print("未发现自定义配置，使用默认配置")
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,14 +29,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-mlq6(#a^2vk!1=7=xhp#$i=o5d%namfs=+b26$m#sh_2rco7j^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = locals().get("DEBUG", False)
 
 # 如果前端是代理，则可以通过该配置，在系统构建url的时候，获取正确的 scheme
 # 需要在 前端加入该配置  proxy_set_header X-Forwarded-Proto https;
 # https://docs.djangoproject.com/zh-hans/4.2/ref/settings/#std-setting-SECURE_PROXY_SSL_HEADER
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = locals().get("ALLOWED_HOSTS", ["*"])
 
 # Application definition
 
@@ -56,6 +60,8 @@ INSTALLED_APPS = [
     'django_celery_results',
     'django_celery_beat',
     'imagekit',
+    'drf_yasg',
+    *locals().get("XADMIN_APPS", [])
 ]
 
 MIDDLEWARE = [
@@ -63,6 +69,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -95,9 +102,11 @@ ASGI_APPLICATION = "server.asgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-REDIS_PASSWORD = ""
-REDIS_HOST = "127.0.0.1"
-REDIS_PORT = 6379
+# Redis 配置
+REDIS_HOST = locals().get("REDIS_HOST", "redis")
+REDIS_PORT = locals().get("REDIS_PORT", 6379)
+REDIS_PASSWORD = locals().get("REDIS_PASSWORD", "nineven")
+
 DEFAULT_CACHE_ID = 1
 CHANNEL_LAYERS_CACHE_ID = 2
 CELERY_BROKER_CACHE_ID = 3
@@ -122,21 +131,18 @@ CACHES = {
 # python manage.py makemigrations
 # python manage.py migrate
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.mysql',
-    #     'NAME': 'xadmin',
-    #     'USER': 'server',
-    #     'PASSWORD': 'KGzKjZpWBp4R4RSa',
-    #     'HOST': 'mariadb',
-    #     'PORT': 3306,
-    #     'CONN_MAX_AGE': 600,
-    #     # 设置MySQL的驱动
-    #     # 'OPTIONS': {'init_command': 'SET storage_engine=INNODB'},
-    #     'OPTIONS': {'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"', 'charset': 'utf8mb4'}
-    # },
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': locals().get('DB_ENGINE', 'django.db.backends.sqlite3'),
+        'NAME': locals().get('DB_DATABASE', BASE_DIR / "db.sqlite3"),
+        'HOST': locals().get('DB_HOST', 'mariadb'),
+        'PORT': locals().get('DB_PORT', 3306),
+        'USER': locals().get('DB_USER', 'server'),
+        'PASSWORD': locals().get('DB_PASSWORD', 'KGzKjZpWBp4R4RSa'),
+        'CONN_MAX_AGE': 600,
+        # 设置MySQL的驱动
+        # 'OPTIONS': {'init_command': 'SET storage_engine=INNODB'},
+        # 'OPTIONS': {'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"', 'charset': 'utf8mb4'},
+        'OPTIONS': locals().get('OPTIONS', {}),
     }
 }
 # https://docs.djangoproject.com/zh-hans/5.0/topics/db/multi-db/#automatic-database-routing
@@ -152,6 +158,7 @@ DATABASES = {
 
 DATABASE_ROUTERS = ['common.core.db.router.DBRouter']
 
+# websocket 消息需要用到redis的消息发布订阅
 CHANNEL_LAYERS = {
     "default": {
         # "BACKEND": "channels_redis.core.RedisChannelLayer",
@@ -196,7 +203,16 @@ AUTH_USER_MODEL = "system.UserInfo"
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = 'api/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
+
+# STATICFILES_FINDERS = (
+#     "django.contrib.staticfiles.finders.FileSystemFinder",
+#     "django.contrib.staticfiles.finders.AppDirectoriesFinder"
+# )
+# 收集静态文件
+# python manage.py collectstatic
+
 
 # Media配置
 MEDIA_URL = "media/"
@@ -216,9 +232,19 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
+        # 'common.drf.renders.CSVFileRenderer',
+        # 'common.drf.renders.ExcelFileRenderer',
+    ),
+    'DEFAULT_PARSER_CLASSES': (
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+        'common.drf.parsers.CSVFileParser',
+        'common.drf.parsers.ExcelFileParser',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'common.core.auth.CookieJWTAuthentication',
+        "rest_framework.authentication.SessionAuthentication",
         # 'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'EXCEPTION_HANDLER': 'common.core.exception.common_exception_handler',
@@ -232,6 +258,7 @@ REST_FRAMEWORK = {
         'download1': '10/m',
         'download2': '100/h',
         'register': '10/d',
+        **locals().get('DEFAULT_THROTTLE_RATES', {})
     },
     'DEFAULT_PAGINATION_CLASS': 'common.core.pagination.PageNumber',
     'DEFAULT_PERMISSION_CLASSES': [
@@ -241,8 +268,7 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.OrderingFilter',
-        'common.core.filter.DataPermissionFilter',
-        'common.core.filter.BaseModelFilter',
+        'common.core.filter.BaseDataPermissionFilter',
     ),
 }
 
@@ -440,6 +466,8 @@ CACHE_KEY_TEMPLATE = {
     'user_websocket_key': 'user_websocket',
     'upload_part_info_key': 'upload_part_info',
     'black_access_token_key': 'black_access_token',
+    'common_resource_ids_key': 'common_resource_ids',
+    **locals().get('CACHE_KEY_TEMPLATE', {})
 }
 
 # Celery Configuration Options
@@ -502,7 +530,8 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'system.tasks.auto_clean_tmp_file_job',
         'schedule': crontab(hour='2', minute='32'),
         'args': ()
-    }
+    },
+    **locals().get('CELERY_BEAT_SCHEDULE', {})
 }
 
 # 字母验证码
@@ -522,11 +551,16 @@ CAPTCHA_NOISE_FUNCTIONS = ('captcha.helpers.noise_null',
 APPEND_SLASH = False
 
 HTTP_BIND_HOST = '0.0.0.0'
-HTTP_LISTEN_PORT = 8896
+HTTP_LISTEN_PORT = locals().get('HTTP_LISTEN_PORT', 8896)
 # celery flower 任务监控配置
 CELERY_FLOWER_PORT = 5566
 CELERY_FLOWER_HOST = '127.0.0.1'
 CELERY_FLOWER_AUTH = 'flower:flower123.'
+
+CONFIG_IGNORE_APPS = ['daphne', 'admin', 'auth', 'contenttypes', 'sessions', 'messages', 'staticfiles', 'common',
+                      'system', 'message', 'rest_framework_simplejwt', 'token_blacklist', 'captcha', 'corsheaders',
+                      'rest_framework', 'django_filters', 'django_celery_results', 'django_celery_beat', 'imagekit',
+                      'drf_yasg']
 
 # 访问白名单配置
 PERMISSION_WHITE_URL = [
@@ -536,12 +570,15 @@ PERMISSION_WHITE_URL = [
     "^/api/system/user/notice/unread$",
     "^/api/system/routes$",
     "^/api/system/dashboard/",
+    "^/api/system/.*choices$",
+    "^/api/system/.*search-fields$",
 ]
 
 # 访问权限配置
 PERMISSION_SHOW_PREFIX = [
-    'api/system',
-    'api/flower',
+    r'api/system',
+    r'api/flower',
+    r'api-docs',
 ]
 # 数据权限配置
 PERMISSION_DATA_AUTH_APPS = [
@@ -558,4 +595,23 @@ API_MODEL_MAP = {
     "/api/system/login": "用户登录",
     "/api/system/logout": "用户登出",
     "/api/flower": "定时任务",
+}
+
+SWAGGER_SETTINGS = {
+    "USE_SESSION_AUTH": True,
+    "SECURITY_DEFINITIONS": {"Bearer": {"type": "apiKey", 'in': 'header', 'name': 'Authorization'}},
+    'LOGIN_URL': '/api-docs/login/',
+    'LOGOUT_URL': '/api-docs/logout/',
+    # 'DOC_EXPANSION': None,
+    # 'SHOW_REQUEST_HEADERS':True,
+    # 'DOC_EXPANSION': 'list',
+    # 接口文档中方法列表以首字母升序排列
+    "APIS_SORTER": "alpha",
+    # 如果支持json提交, 则接口文档中包含json输入框
+    "JSON_EDITOR": True,
+    # 方法列表字母排序
+    "OPERATIONS_SORTER": "alpha",
+    "VALIDATOR_URL": None,
+    "AUTO_SCHEMA_TYPE": 2,  # 分组根据url层级分，0、1 或 2 层
+    "DEFAULT_AUTO_SCHEMA_CLASS": "common.utils.swagger.CustomSwaggerAutoSchema",
 }

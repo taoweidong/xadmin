@@ -11,14 +11,13 @@ import time
 from django.conf import settings
 from django.contrib import auth
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
 from rest_framework.throttling import BaseThrottle
 from rest_framework.views import APIView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenRefreshView, TokenViewBase
+from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
 from user_agents import parse
 
+from common.base.utils import AESCipherV2
 from common.cache.storage import BlackAccessTokenCache
 from common.core.config import SysConfig
 from common.core.response import ApiResponse
@@ -39,7 +38,7 @@ def save_login_log(request, login_type=UserLoginLog.LoginTypeChoices.USERNAME, s
         'agent': str(parse(request.META['HTTP_USER_AGENT'])),
         'login_type': login_type
     }
-    serializer = UserLoginLogSerializer(data=data, request=request, init=True)
+    serializer = UserLoginLogSerializer(data=data, request=request, all_fields=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
 
@@ -62,6 +61,7 @@ def get_request_ident(request):
 
 
 class TempTokenView(APIView):
+    """获取临时token"""
     permission_classes = []
     authentication_classes = []
 
@@ -71,6 +71,7 @@ class TempTokenView(APIView):
 
 
 class CaptchaView(APIView):
+    """获取验证码"""
     permission_classes = []
     authentication_classes = []
 
@@ -79,6 +80,7 @@ class CaptchaView(APIView):
 
 
 class RegisterView(APIView):
+    """用户注册"""
     permission_classes = []
     authentication_classes = []
     throttle_classes = [RegisterThrottle]
@@ -94,18 +96,24 @@ class RegisterView(APIView):
             return ApiResponse(code=1001, detail='禁止注册')
 
         if verify_token(token, client_id, success_once=True) and username and password:
+            username = AESCipherV2(token).decrypt(username)
+            password = AESCipherV2(token).decrypt(password)
             if UserInfo.objects.filter(username=username).count():
                 return ApiResponse(code=1001, detail='用户名已经存在，请换个试试')
 
             user = auth.authenticate(username=username, password=password)
             update_fields = ['last_login']
             if not user:
-                user = UserInfo.objects.create_user(username=username, password=password, first_name=username)
+                user = UserInfo.objects.create_user(username=username, password=password, first_name=username,
+                                                    nickname=username)
                 if channel and user:
                     dept = DeptInfo.objects.filter(is_active=True, auto_bind=True, code=channel).first()
+                    if not dept:
+                        dept = DeptInfo.objects.filter(is_active=True, auto_bind=True).first()
                     if dept:
                         user.dept = dept
-                        update_fields.append('dept')
+                        user.dept_belong = dept
+                        update_fields.extend(['dept_belong', 'dept'])
 
             if user.is_active:
                 refresh = RefreshToken.for_user(user)
@@ -122,12 +130,8 @@ class RegisterView(APIView):
         return ApiResponse(code=1001, detail='token校验失败,请刷新页面重试')
 
 
-class AuthTokenSerializer(TokenObtainPairSerializer):
-    default_error_messages = {"no_active_account": _("登录失败，账号或密码错误")}
-
-
-class LoginView(TokenViewBase):
-    serializer_class = AuthTokenSerializer
+class LoginView(TokenObtainPairView):
+    """用户登录"""
 
     def post(self, request, *args, **kwargs):
         if not SysConfig.LOGIN:
@@ -140,7 +144,9 @@ class LoginView(TokenViewBase):
         if client_id and token and captcha_key and verify_token(token, client_id, success_once=True):
             is_valid = CaptchaAuth(captcha_key=captcha_key).valid(captcha_code)
             if is_valid:
-                serializer = self.get_serializer(data=request.data)
+                username = AESCipherV2(token).decrypt(request.data.get('username'))
+                password = AESCipherV2(token).decrypt(request.data.get('password'))
+                serializer = self.get_serializer(data={'username': username, 'password': password})
                 try:
                     serializer.is_valid(raise_exception=True)
                 except Exception as e:
@@ -159,6 +165,8 @@ class LoginView(TokenViewBase):
 
 
 class RefreshTokenView(TokenRefreshView):
+    """刷新Token"""
+
     def post(self, request, *args, **kwargs):
         data = super().post(request, *args, **kwargs).data
         data.update(get_token_lifetime(request.user))
@@ -166,12 +174,11 @@ class RefreshTokenView(TokenRefreshView):
 
 
 class LogoutView(APIView):
+    """用户登出"""
 
     def post(self, request):
         """
         登出账户，并且将账户的access 和 refresh token 加入黑名单
-        :param request:
-        :return:
         """
         payload = request.auth.payload
         exp = payload.get('exp')

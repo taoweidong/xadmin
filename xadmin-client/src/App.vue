@@ -6,18 +6,24 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, nextTick } from "vue";
+import { defineComponent } from "vue";
 import { checkVersion } from "version-rocket";
 import { ElConfigProvider } from "element-plus";
-import en from "element-plus/dist/locale/en.mjs";
 import { ReDialog } from "@/components/ReDialog";
-import zhCn from "element-plus/dist/locale/zh-cn.mjs";
-import { $t, transformI18n } from "@/plugins/i18n";
-import { useWatermark } from "@pureadmin/utils";
+import en from "element-plus/es/locale/lang/en";
+import zhCn from "element-plus/es/locale/lang/zh-cn";
+import plusEn from "plus-pro-components/es/locale/lang/en";
+import plusZhCn from "plus-pro-components/es/locale/lang/zh-cn";
 import { Boot } from "@wangeditor/editor";
 import attachmentModule from "@wangeditor/plugin-upload-attachment";
+import { $t, transformI18n } from "@/plugins/i18n";
 
-Boot.registerModule(attachmentModule);
+try {
+  Boot.registerModule(attachmentModule);
+} catch (e) {
+  console.log(e);
+}
+
 export default defineComponent({
   name: "app",
   components: {
@@ -26,21 +32,10 @@ export default defineComponent({
   },
   computed: {
     currentLocale() {
-      return this.$storage.locale?.locale === "zh" ? zhCn : en;
+      return this.$storage.locale?.locale === "zh"
+        ? { ...zhCn, ...plusZhCn }
+        : { ...en, ...plusEn };
     }
-  },
-  mounted() {
-    const { setWatermark } = useWatermark();
-    nextTick(() => {
-      setWatermark("xadmin", {
-        globalAlpha: 0.1, // 值越低越透明
-        gradient: [
-          { value: 0, color: "magenta" },
-          { value: 0.5, color: "blue" },
-          { value: 1.0, color: "red" }
-        ]
-      });
-    });
   },
   beforeCreate() {
     const { version, name: title } = __APP_INFO__.pkg;

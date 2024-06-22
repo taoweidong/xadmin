@@ -1,24 +1,26 @@
 <script lang="ts" setup>
-import { computed, ref, watch } from "vue";
-import { FormProps } from "./utils/types";
-import FromQuestion from "@/components/FromQuestion/index.vue";
-import ReAnimateSelector from "@/components/ReAnimateSelector";
-import { IconSelect } from "@/components/ReIcon";
-
-import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import { transformI18n } from "@/plugins/i18n";
-import { dirFormRules, menuFormRules, permissionFormRules } from "./utils/rule";
-import { hasAuth } from "@/router/utils";
-import { cloneDeep } from "@pureadmin/utils";
 import { useI18n } from "vue-i18n";
+import { FormProps } from "./utils/types";
+import { useApiAuth } from "./utils/hook";
+import { computed, ref, watch } from "vue";
+import { cloneDeep } from "@pureadmin/utils";
+import { transformI18n } from "@/plugins/i18n";
+import { IconSelect } from "@/components/ReIcon";
 import { MenuChoices } from "@/views/system/constants";
+import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+import ReAnimateSelector from "@/components/ReAnimateSelector";
+import FromQuestion from "@/components/FromQuestion/index.vue";
 import Segmented, { type OptionsType } from "@/components/ReSegmented";
+import { dirFormRules, menuFormRules, permissionFormRules } from "./utils/rule";
 
 const { t } = useI18n();
+const { auth } = useApiAuth();
+
 const emit = defineEmits(["handleConfirm"]);
+
 const props = withDefaults(defineProps<FormProps>(), {
   treeData: () => [],
-  choicesDict: () => [],
+  methodChoices: () => [],
   modelList: () => [],
   menuChoices: () => [],
   menuUrlList: () => [],
@@ -31,6 +33,7 @@ const props = withDefaults(defineProps<FormProps>(), {
     path: "",
     rank: 0,
     component: "",
+    method: "",
     model: [],
     is_active: true,
     meta: {
@@ -45,6 +48,7 @@ const props = withDefaults(defineProps<FormProps>(), {
       transition_enter: "",
       transition_leave: "",
       is_hidden_tag: false,
+      fixed_tag: false,
       dynamic_level: 0
     }
   })
@@ -72,6 +76,7 @@ function getRef() {
 }
 
 const formRules = ref(cloneDeep(dirFormRules));
+
 watch(
   () => newFormInline.value.menu_type,
   () => {
@@ -104,8 +109,6 @@ const handleChangeMenuType = menu_type => {
   }
 };
 
-defineExpose({ getRef });
-
 const getMinHeight = () => {
   if (!newFormInline.value.isAdd) {
     return `calc(100vh - 145px)`;
@@ -116,17 +119,18 @@ const getMinHeight = () => {
 const menuOptions = computed<Array<OptionsType>>(() => {
   const data = cloneDeep(props.menuChoices);
   data.forEach(item => {
-    item.value = item.key;
     if (!newFormInline.value.isAdd) {
       if (newFormInline.value.menu_type === MenuChoices.PERMISSION) {
-        item.disabled = item.key !== MenuChoices.PERMISSION;
+        item.disabled = item.value !== MenuChoices.PERMISSION;
       } else {
-        item.disabled = item.key === MenuChoices.PERMISSION;
+        item.disabled = item.value === MenuChoices.PERMISSION;
       }
     }
   });
   return data;
 });
+
+defineExpose({ getRef });
 </script>
 
 <template>
@@ -136,7 +140,7 @@ const menuOptions = computed<Array<OptionsType>>(() => {
   >
     <el-form
       ref="ruleFormRef"
-      :disabled="!hasAuth('update:systemMenu')"
+      :disabled="!auth.update"
       :model="newFormInline"
       :rules="formRules"
       class="search-form bg-bg_color w-[90%] pl-8 pt-[12px]"
@@ -284,41 +288,84 @@ const menuOptions = computed<Array<OptionsType>>(() => {
       </div>
       <div v-if="newFormInline.menu_type !== MenuChoices.PERMISSION">
         <el-divider />
-        <el-form-item :label="t('menu.showLink')" prop="showLink">
-          <template #label>
-            <from-question
-              :description="t('menu.exampleShowLink')"
-              :label="t('menu.showLink')"
-            />
-          </template>
-          <Segmented
-            :modelValue="newFormInline.meta.is_show_menu ? 0 : 1"
-            :options="ifEnableOptions"
-            @change="
-              ({ option: { value } }) => {
-                newFormInline.meta.is_show_menu = value;
-              }
-            "
-          />
-        </el-form-item>
-
-        <el-form-item :label="t('labels.status')" prop="is_active">
-          <template #label>
-            <from-question
-              :description="t('menu.exampleMenuStatus')"
-              :label="t('labels.status')"
-            />
-          </template>
-          <Segmented
-            :modelValue="newFormInline.is_active ? 0 : 1"
-            :options="ifEnableOptions"
-            @change="
-              ({ option: { value } }) => {
-                newFormInline.is_active = value;
-              }
-            "
-          />
-        </el-form-item>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item :label="t('menu.showLink')" prop="showLink">
+              <template #label>
+                <from-question
+                  :description="t('menu.exampleShowLink')"
+                  :label="t('menu.showLink')"
+                />
+              </template>
+              <Segmented
+                :modelValue="newFormInline.meta.is_show_menu ? 0 : 1"
+                :options="ifEnableOptions"
+                @change="
+                  ({ option: { value } }) => {
+                    newFormInline.meta.is_show_menu = value;
+                  }
+                "
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item :label="t('labels.status')" prop="is_active">
+              <template #label>
+                <from-question
+                  :description="t('menu.exampleMenuStatus')"
+                  :label="t('labels.status')"
+                />
+              </template>
+              <Segmented
+                :modelValue="newFormInline.is_active ? 0 : 1"
+                :options="ifEnableOptions"
+                @change="
+                  ({ option: { value } }) => {
+                    newFormInline.is_active = value;
+                  }
+                "
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item :label="t('menu.fixedTag')" prop="fixedTag">
+              <template #label>
+                <from-question
+                  :description="t('menu.fixedTagTip')"
+                  :label="t('menu.fixedTag')"
+                />
+              </template>
+              <Segmented
+                :modelValue="newFormInline.meta.fixed_tag ? 0 : 1"
+                :options="ifEnableOptions"
+                @change="
+                  ({ option: { value } }) => {
+                    newFormInline.meta.fixed_tag = value;
+                  }
+                "
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item :label="t('menu.hiddenTag')" prop="hiddenTag">
+              <template #label>
+                <from-question
+                  :description="t('menu.hiddenTagTip')"
+                  :label="t('menu.hiddenTag')"
+                />
+              </template>
+              <Segmented
+                :modelValue="newFormInline.meta.is_hidden_tag ? 0 : 1"
+                :options="ifEnableOptions"
+                @change="
+                  ({ option: { value } }) => {
+                    newFormInline.meta.is_hidden_tag = value;
+                  }
+                "
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
         <el-divider />
         <el-form-item :label="t('menu.externalLink')" prop="isFrame">
@@ -401,28 +448,29 @@ const menuOptions = computed<Array<OptionsType>>(() => {
             clearable
             filterable
             multiple
+            value-key="pk"
           >
             <el-option
               v-for="item in props.modelList"
               :key="item.pk"
               :disabled="item.disabled || item.name === '*'"
               :label="`${item.label}(${item.name})`"
-              :value="item.pk"
+              :value="{ pk: item.pk, name: item.name }"
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('menu.requestMethod')" prop="component">
+        <el-form-item :label="t('menu.requestMethod')" prop="method">
           <el-select
-            v-model="newFormInline.component"
+            v-model="newFormInline.method"
             class="!w-[180px]"
             clearable
           >
             <el-option
-              v-for="item in props.choicesDict"
-              :key="item.key"
+              v-for="item in props.methodChoices"
+              :key="item.value"
               :disabled="item.disabled"
               :label="item.label"
-              :value="item.key"
+              :value="item.value"
             />
           </el-select>
         </el-form-item>
@@ -445,15 +493,11 @@ const menuOptions = computed<Array<OptionsType>>(() => {
         </el-form-item>
       </div>
       <el-form-item
-        v-if="
-          hasAuth('update:systemMenu') &&
-          !newFormInline.isAdd &&
-          newFormInline.pk
-        "
+        v-if="auth.update && !newFormInline.isAdd && newFormInline.pk"
         class="flex float-right"
       >
         <el-popconfirm
-          :title="t('buttons.hsconfirmdupdate')"
+          :title="t('buttons.confirmUpdate')"
           @confirm="emit('handleConfirm', ruleFormRef, newFormInline)"
         >
           <template #reference>
@@ -461,7 +505,7 @@ const menuOptions = computed<Array<OptionsType>>(() => {
               :disabled="newFormInline.isAdd || !newFormInline.pk"
               plain
               type="danger"
-              >{{ t("buttons.hsupdate") }}
+              >{{ t("buttons.update") }}
             </el-button>
           </template>
         </el-popconfirm>

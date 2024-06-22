@@ -1,23 +1,21 @@
-import { http } from "@/utils/http";
-import type { Result, ResultDetail } from "@/api/types";
 import type { UserInfoResult } from "@/api/auth";
 
-export const getUserInfoApi = () => {
-  return http.request<UserInfoResult>("get", "/api/system/userinfo/self");
-};
+import { BaseApi } from "@/api/base";
+import type { BaseResult } from "@/api/types";
 
-export const updateUserInfoApi = (data?: object) => {
-  return http.request<ResultDetail>("put", `/api/system/userinfo/self`, {
-    data: data
-  });
-};
+class UserInfoApi extends BaseApi {
+  reset = (data?: object) => {
+    return this.request<BaseResult>(
+      "post",
+      {},
+      data,
+      `${this.baseApi}/reset-password`
+    );
+  };
 
-export const uploadUserInfoAvatarApi = (params?: object, data?: object) => {
-  return http.upload<Result>("/api/system/userinfo/self/upload", params, data);
-};
+  self = (pk: string = "self") => {
+    return this.request<UserInfoResult>("get", {}, {}, `${this.baseApi}/${pk}`);
+  };
+}
 
-export const updateUserInfoPasswordApi = (data?: object) => {
-  return http.request<Result>("post", "/api/system/userinfo/reset_password", {
-    data: data
-  });
-};
+export const userInfoApi = new UserInfoApi("/api/system/userinfo");
