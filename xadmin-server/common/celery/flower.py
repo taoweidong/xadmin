@@ -9,25 +9,21 @@ import logging
 
 from django.conf import settings
 from django.http import HttpResponse
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.clickjacking import xframe_options_exempt
+from drf_spectacular.utils import extend_schema
 from proxy.views import proxy_view
-from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
 
 logger = logging.getLogger(__name__)
 
 flower_url = f'{settings.CELERY_FLOWER_HOST}:{settings.CELERY_FLOWER_PORT}'
 
 
-class CeleryFlowerView(APIView):
-    """
-    Celery操作接口
-    get:
-    查询接口
-    post:
-    启动接口
-    """
+class CeleryFlowerView(GenericAPIView):
+    """celery 定时任务"""
 
+    @extend_schema(exclude=True)
     @xframe_options_exempt
     def get(self, request, path):
         remote_url = 'http://{}/api/flower/{}'.format(flower_url, path)
@@ -40,10 +36,11 @@ class CeleryFlowerView(APIView):
             })
         except Exception as e:
             logger.warning(f"celery flower service unavailable. {e}")
-            msg = _("<h3>服务不在线，请联系管理员</h3>")
+            msg = _("<h3>Celery flower service unavailable. Please contact the administrator</h3>")
             response = HttpResponse(msg)
         return response
 
+    @extend_schema(exclude=True)
     @xframe_options_exempt
     def post(self, request, path):
         return self.get(request, path)

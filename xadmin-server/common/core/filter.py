@@ -8,11 +8,18 @@ import datetime
 import json
 import logging
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q, QuerySet
+from django.forms.utils import from_current_timezone
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from django.utils.translation import gettext_lazy as _
+from django_filters import rest_framework as filters
+from django_filters.fields import MultipleChoiceField
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.filters import BaseFilterBackend
 
+from common.cache.storage import CommonResourceIDsCache
 from common.core.config import SysConfig
 from common.core.db.utils import RelatedManager
 from system.models import UserInfo, DataPermission, ModeTypeAbstract, DeptInfo, ModelLabelField
@@ -50,7 +57,7 @@ def get_filter_q_base(model, permission, user_obj=None, dept_obj=None):
                     rule['value'] = '0'
             elif f_type == ModelLabelField.KeyChoices.OWNER_DEPARTMENT:
                 if user_obj:
-                    rule['value'] = user_obj.dept_id
+                    rule['value'] = str(user_obj.dept_id)
                 else:
                     rule['value'] = '0'
             elif f_type == ModelLabelField.KeyChoices.OWNER_DEPARTMENTS:
@@ -77,9 +84,24 @@ def get_filter_q_base(model, permission, user_obj=None, dept_obj=None):
                     rule['value'] = timezone.now() - datetime.timedelta(seconds=-val)
                 else:
                     rule['value'] = timezone.now() + datetime.timedelta(seconds=val)
-            elif f_type in [ModelLabelField.KeyChoices.JSON, ModelLabelField.KeyChoices.TABLE_USER,
+            elif f_type == ModelLabelField.KeyChoices.DATETIME_RANGE:
+                if isinstance(rule['value'], list) and len(rule['value']) == 2:
+                    rule['value'] = [from_current_timezone(parse_datetime(rule['value'][0])),
+                                     from_current_timezone(parse_datetime(rule['value'][1]))]
+            elif f_type == ModelLabelField.KeyChoices.DATETIME:
+                if isinstance(rule['value'], str):
+                    rule['value'] = from_current_timezone(parse_datetime(rule['value']))
+            elif f_type in [ModelLabelField.KeyChoices.TABLE_USER,
                             ModelLabelField.KeyChoices.TABLE_MENU, ModelLabelField.KeyChoices.TABLE_ROLE,
                             ModelLabelField.KeyChoices.TABLE_DEPT]:
+                value = []
+                for item in json.loads(rule['value']):
+                    if isinstance(item, dict) and 'pk' in item:
+                        value.append(item['pk'])
+                    else:
+                        value.append(item)
+                rule['value'] = value
+            elif f_type == ModelLabelField.KeyChoices.JSON:
                 rule['value'] = json.loads(rule['value'])
             rule.pop('type', None)
 
@@ -129,7 +151,7 @@ def get_filter_queryset(queryset: QuerySet, user_obj: UserInfo):
         若模式为或模式，并存在全部数据，则直接返回queryset
         若模式为且模式，则 返回queryset.filter(规则)
     """
-    if not SysConfig.PERMISSION_DATA:
+    if not SysConfig.PERMISSION_DATA or queryset is None:
         return queryset
 
     if user_obj.is_superuser:
@@ -142,21 +164,33 @@ def get_filter_queryset(queryset: QuerySet, user_obj: UserInfo):
     dq = Q(menu__isnull=True) | Q(menu__isnull=False, menu__pk=getattr(user_obj, 'menu', None))
     has_dept = False
     if dept_obj:
+        # 存在部门，递归获取部门，类似树结构，部门权限需要且模式，将获取到的所有部门的数据规则通过且操作
         dept_pks = DeptInfo.recursion_dept_info(dept_obj.pk, is_parent=True)
         for p_dept_obj in DeptInfo.objects.filter(pk__in=dept_pks, is_active=True):
+            # 获取对应的数据权限
             permission = DataPermission.objects.filter(is_active=True).filter(deptinfo=p_dept_obj).filter(dq)
+            # 将数据权限且操作
             q &= get_filter_q_base(queryset.model, permission, user_obj, dept_obj)
             has_dept = True
         if not has_dept and q == Q():
             q = Q(id=0)
+        if has_dept and q == Q():
+            return queryset
+    # 获取个人单独授权规则
     permission = DataPermission.objects.filter(is_active=True).filter(userinfo=user_obj).filter(dq)
+    # 不存在个人单独授权，则返回部门规则授权
     if not permission.count():
-        return queryset.filter(q)
+        logger.warning(f"get filter end. {queryset.model._meta.label} : {q}")
+        if has_dept:
+            return queryset.filter(q)
+        else:
+            return queryset.none()  # 没有任何授权，返回 none
     q1 = get_filter_q_base(queryset.model, permission, user_obj, dept_obj)
     if q1 == Q():
         q = q1
     else:
-        q |= q1
+        q |= q1  # 存在部门规则和个人规则，或操作
+    logger.warning(f"get filter end. {queryset.model._meta.label} : {q}")
     return queryset.filter(q)
 
 
@@ -165,7 +199,7 @@ class OwnerUserFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
         if request.user and request.user.is_authenticated:
             return queryset.filter(owner=request.user)
-        raise NotAuthenticated('未授权认证')
+        raise NotAuthenticated(_("Unauthorized authentication"))
 
 
 class CreatorUserFilter(BaseFilterBackend):
@@ -173,38 +207,44 @@ class CreatorUserFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
         if request.user and request.user.is_authenticated:
             return queryset.filter(creator=request.user)
-        raise NotAuthenticated('未授权认证')
+        raise NotAuthenticated(_("Unauthorized authentication"))
 
 
-class DataPermissionFilter(BaseFilterBackend):
+class BaseDataPermissionFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
         return get_filter_queryset(queryset, request.user)
 
 
-class BaseModelFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        created_time_after = request.query_params.get('created_time_after', None)
-        created_time_before = request.query_params.get('created_time_before', None)
-        updated_time_after = request.query_params.get('updated_time_after', None)
-        updated_time_before = request.query_params.get('updated_time_after', None)
-        if any([created_time_after, created_time_before, updated_time_after, updated_time_before]):
-            created_time_filter = Q()
-            if created_time_after and created_time_before:
-                created_time_filter &= Q(created_time__gte=created_time_after) & Q(
-                    created_time__lte=created_time_before)
-            elif created_time_after:
-                created_time_filter &= Q(created_time__gte=created_time_after)
-            elif created_time_before:
-                created_time_filter &= Q(created_time__lte=created_time_before)
+class BaseFilterSet(filters.FilterSet):
+    pk = filters.NumberFilter(field_name='id')
+    spm = filters.CharFilter(field_name='spm', method='get_spm_filter')
+    creator = filters.NumberFilter(field_name='creator')
+    modifier = filters.NumberFilter(field_name='modifier')
+    dept_belong = filters.UUIDFilter(field_name='dept_belong')
+    created_time = filters.DateTimeFromToRangeFilter(field_name='created_time')
+    updated_time = filters.DateTimeFromToRangeFilter(field_name='updated_time')
+    description = filters.CharFilter(field_name='description', lookup_expr='icontains')
 
-            updated_time_filter = Q()
-            if updated_time_after and updated_time_before:
-                updated_time_filter &= Q(updated_time__gte=updated_time_after) & Q(
-                    updated_time__lte=updated_time_before)
-            elif updated_time_after:
-                updated_time_filter &= Q(updated_time__gte=updated_time_after)
-            elif updated_time_before:
-                updated_time_filter &= Q(updated_time__lte=updated_time_before)
-            queryset = queryset.filter(created_time_filter & updated_time_filter)
-            return queryset
+    def get_spm_filter(self, queryset, name, value):
+        pks = CommonResourceIDsCache(value).get_storage_cache()
+        if pks:
+            return queryset.filter(pk__in=pks)
         return queryset
+
+
+class PkMultipleChoiceField(MultipleChoiceField):
+    def validate(self, value):
+        if self.required and not value:
+            raise ValidationError(self.error_messages["required"], code="required")
+
+
+class PkMultipleFilter(filters.MultipleChoiceFilter):
+    """
+    通过 input_type 来自定义前端展示类型
+    """
+
+    field_class = PkMultipleChoiceField
+
+    def __init__(self, **kwargs):
+        self.input_type = kwargs.pop('input_type', None)
+        super().__init__(**kwargs)

@@ -1,9 +1,18 @@
 import { defineStore } from "pinia";
-import { store } from "@/store";
-import { routerArrays } from "@/layout/types";
-import type { multiType, positionType } from "./types";
-import { responsiveStorageNameSpace } from "@/config";
-import { isBoolean, isEqual, isUrl, storageLocal } from "@pureadmin/utils";
+import {
+  getConfig,
+  isBoolean,
+  isEqual,
+  isNumber,
+  isUrl,
+  type multiType,
+  type positionType,
+  responsiveStorageNameSpace,
+  routerArrays,
+  storageLocal,
+  store
+} from "../utils";
+import { usePermissionStoreHook } from "./permission";
 
 export const useMultiTagsStore = defineStore({
   id: "pure-multiTags",
@@ -15,7 +24,12 @@ export const useMultiTagsStore = defineStore({
       ? storageLocal().getItem<StorageConfigs>(
           `${responsiveStorageNameSpace()}tags`
         )
-      : [...routerArrays],
+      : [
+          ...routerArrays,
+          ...usePermissionStoreHook().flatteningRoutes.filter(
+            v => v?.meta?.fixedTag
+          )
+        ],
     multiTagsCache: storageLocal().getItem<StorageConfigs>(
       `${responsiveStorageNameSpace()}configure`
     )?.multiTagsCache
@@ -38,11 +52,12 @@ export const useMultiTagsStore = defineStore({
       }
     },
     tagsCache(multiTags) {
-      this.getMultiTagsCache &&
+      if (this.getMultiTagsCache) {
         storageLocal().setItem(
           `${responsiveStorageNameSpace()}tags`,
           multiTags
         );
+      }
     },
     handleTags<T>(
       mode: string,
@@ -95,11 +110,21 @@ export const useMultiTagsStore = defineStore({
                 const index = this.multiTags.findIndex(
                   item => item?.path === tagPath
                 );
-                index !== -1 && this.multiTags.splice(index, 1);
+                if (index !== -1) {
+                  this.multiTags.splice(index, 1);
+                }
               }
             }
             this.multiTags.push(value);
             this.tagsCache(this.multiTags);
+            if (
+              getConfig()?.MaxTagsLevel &&
+              isNumber(getConfig().MaxTagsLevel)
+            ) {
+              if (this.multiTags.length > getConfig().MaxTagsLevel) {
+                this.multiTags.splice(1, 1);
+              }
+            }
           }
           break;
         case "splice":

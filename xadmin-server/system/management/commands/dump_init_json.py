@@ -23,7 +23,7 @@ class Command(BaseCommand):
             serializers.serialize(
                 'json',
                 queryset,
-                indent=4,
+                indent=2,
                 stream=stream or self.stdout,
                 object_count=queryset.count(),
                 # fields=[x.name for x in queryset.model._meta.get_fields() if x.name not in ['updated_time']]
@@ -37,5 +37,5 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         file_root = os.path.join(settings.BASE_DIR, "loadjson")
         for model in self.model_names:
-            self.save_json(model.objects.all().order_by('created_time'),
+            self.save_json(model.objects.all().order_by('pk'),
                            os.path.join(file_root, f"{model._meta.model_name}.json"))

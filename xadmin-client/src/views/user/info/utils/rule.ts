@@ -8,32 +8,32 @@ export const formRules = reactive<FormRules>({
   username: [
     {
       required: true,
-      message: transformI18n($t("user.verifyUsername")),
+      message: transformI18n($t("userinfo.username")),
       trigger: "blur"
     }
   ],
   password: [
     {
       required: true,
-      message: transformI18n($t("user.verifyPassword")),
+      message: transformI18n($t("userinfo.verifyPassword")),
       trigger: "blur"
     }
   ],
   nickname: [
     {
       required: true,
-      message: transformI18n($t("user.verifyNickname")),
+      message: transformI18n($t("userinfo.nickname")),
       trigger: "blur"
     }
   ],
   gender: [
     {
       required: true,
-      message: transformI18n($t("user.verifyGender")),
+      message: transformI18n($t("userinfo.gender")),
       trigger: "blur"
     }
   ],
-  mobile: [
+  phone: [
     {
       validator: (rule, value, callback) => {
         if (value === "") {

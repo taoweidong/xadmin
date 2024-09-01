@@ -6,6 +6,7 @@
 # date : 6/2/2023
 import asyncio
 import datetime
+import json
 import logging
 import os
 import time
@@ -15,11 +16,15 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.conf import settings
 from django.utils.module_loading import import_string
+from rest_framework.utils import encoders
 from rest_framework_simplejwt.exceptions import TokenError
 
 from common.base.magic import MagicCacheData
 from common.celery.utils import get_celery_task_log_path
-from system.utils.serializer import UserInfoSerializer
+from common.core.config import UserConfig
+from message.utils import async_push_message
+from system.models import UserInfo
+from system.serializers.userinfo import UserInfoSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +33,14 @@ logger = logging.getLogger(__name__)
 @MagicCacheData.make_cache(timeout=5, key_func=lambda x: x.pk)
 def get_userinfo(user_obj):
     return UserInfoSerializer(instance=user_obj).data
+
+
+@sync_to_async
+def get_user_pk(username):
+    try:
+        return UserInfo.objects.filter(username=username, is_active=True).values_list('pk', flat=True).first()
+    except UserInfo.DoesNotExist:
+        return
 
 
 @sync_to_async
@@ -46,6 +59,11 @@ def token_auth(scope):
     return False, False
 
 
+@sync_to_async
+def get_can_push_message(pk):
+    return UserConfig(pk).PUSH_CHAT_MESSAGE
+
+
 class MessageNotify(AsyncJsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(args, kwargs)
@@ -61,10 +79,10 @@ class MessageNotify(AsyncJsonWebsocketConsumer):
             await self.close(4401)
         else:
             logger.info(f"{self.user_obj} connect success")
-            room_name = self.scope["url_route"]["kwargs"].get('room_name')
+            group_name = self.scope["url_route"]["kwargs"].get('group_name')
             username = self.scope["url_route"]["kwargs"].get('username')
             # # data = verify_token(token, room_name, success_once=True)
-            if username and room_name and username != self.user_obj.username and False:
+            if username and group_name and username != self.user_obj.username:
                 self.disconnected = False
                 self.room_group_name = "message_system_default"
                 # self.room_group_name = f"message_{room_name}"
@@ -88,6 +106,10 @@ class MessageNotify(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         logger.info(f"{self.user_obj} disconnect")
 
+    @classmethod
+    async def encode_json(cls, content):
+        return json.dumps(content, cls=encoders.JSONEncoder, ensure_ascii=False)
+
     # Receive message from WebSocket
     async def receive_json(self, content, **kwargs):
         action = content.get('action')
@@ -101,6 +123,24 @@ class MessageNotify(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_send(
                 self.room_group_name, {"type": "chat_message", "data": data}
             )
+            text = data.get('text')
+            if text.startswith('@'):
+                target = text.split(' ')[0].split('@')
+                if len(target) > 1:
+                    target = target[1]
+                    try:
+                        pk = await get_user_pk(target)
+                        if pk and await(get_can_push_message(pk)):
+                            push_message = {
+                                'title': f"用户 {self.user_obj.username} 发来一条消息",
+                                'message': text,
+                                'level': 'info',
+                                'notice_type': {'label': '聊天室', 'value': 0},
+                                'message_type': 'chat_message',
+                            }
+                            await async_push_message(pk, push_message)
+                    except Exception as e:
+                        logger.error(e)
         else:
             await self.channel_layer.send(self.channel_name, {"type": action, "data": data})
 

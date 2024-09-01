@@ -5,14 +5,19 @@ import { formRules } from "./utils/rule";
 import { FormProps } from "./utils/types";
 import { message } from "@/utils/message";
 import { FieldKeyChoices } from "@/views/system/constants";
-import { hasGlobalAuth } from "@/router/utils";
-import SearchUsers from "@/views/system/base/searchUsers.vue";
+import { hasAuth } from "@/router/utils";
 import { watchDeep } from "@vueuse/core";
-import SearchDepts from "@/views/system/base/searchDepts.vue";
-import SearchRoles from "@/views/system/base/searchRoles.vue";
-import SearchMenus from "@/views/system/base/searchMenus.vue";
 import ReCol from "@/components/ReCol";
-import { getModelLabelFieldLookupsListApi } from "@/api/system/field";
+import { modelLabelFieldApi } from "@/api/system/field";
+import {
+  getDateTimePickerShortcuts,
+  getPickerShortcuts
+} from "@/views/system/utils";
+import SearchUser from "@/views/system/components/searchUser.vue";
+import SearchDept from "@/views/system/components/searchDept.vue";
+import SearchRole from "@/views/system/components/searchRole.vue";
+import SearchMenu from "@/views/system/components/searchMenu.vue";
+import FromQuestion from "@/components/FromQuestion/index.vue";
 
 const props = withDefaults(defineProps<FormProps>(), {
   valuesData: () => [],
@@ -35,32 +40,34 @@ function getRef() {
 
 const matchList = ref([]);
 const getMatchData = (value: any) => {
+  if (!value) return;
   if (value[0] === "*" && value[1] === "*") {
     matchList.value = ["*"];
     newFormInline.value.match = "*";
     newFormInline.value.value = "*";
     return;
   }
-  if (hasGlobalAuth("list:systemModelFieldLookups")) {
-    getModelLabelFieldLookupsListApi({ table: value[0], field: value[1] }).then(
-      res => {
+  if (hasAuth("list:systemModelFieldLookups")) {
+    modelLabelFieldApi
+      .lookups({ table: value[0], field: value[1] })
+      .then(res => {
         if (res.code === 1000) {
-          matchList.value = res.data.results;
+          matchList.value = res.data;
         } else {
           message(`${t("results.failed")}，${res.detail}`, {
             type: "error"
           });
         }
-      }
-    );
+      });
   }
 };
 const { t } = useI18n();
 const showValueInput = ref(true);
 const valueTypeChange = value => {
   tableData.value = [];
+  // newFormInline.value.value = "";
   props.valuesData.forEach(item => {
-    if (item.key === value) {
+    if (item.value === value) {
       showValueInput.value = item.disabled;
     }
   });
@@ -107,11 +114,11 @@ defineExpose({ getRef });
   >
     <el-row :gutter="24">
       <re-col :sm="24" :value="24" :xs="24">
-        <el-form-item :label="t('permission.addName')" prop="name">
+        <el-form-item :label="t('systemPermission.addName')" prop="name">
           <el-cascader
             v-model="newFormInline.name"
             :options="props.fieldLookupsData"
-            :placeholder="t('permission.addName')"
+            :placeholder="t('systemPermission.addName')"
             :props="{
               value: 'name',
               label: 'label',
@@ -129,10 +136,16 @@ defineExpose({ getRef });
         </el-form-item>
       </re-col>
       <re-col :sm="24" :value="12" :xs="24">
-        <el-form-item :label="t('permission.addMatch')" prop="match">
+        <el-form-item :label="t('systemPermission.addMatch')" prop="match">
+          <template #label>
+            <from-question
+              description="https://docs.djangoproject.com/zh-hans/5.0/ref/models/querysets/#field-lookups"
+              :label="t('systemPermission.addMatch')"
+            />
+          </template>
           <el-select
             v-model="newFormInline.match"
-            :placeholder="t('permission.addMatch')"
+            :placeholder="t('systemPermission.addMatch')"
             :reserve-keyword="false"
             allow-create
             class="w-full"
@@ -149,10 +162,10 @@ defineExpose({ getRef });
         </el-form-item>
       </re-col>
       <re-col :sm="24" :value="12" :xs="24">
-        <el-form-item :label="t('permission.addExclude')" prop="exclude">
+        <el-form-item :label="t('systemPermission.addExclude')" prop="exclude">
           <el-select
             v-model="newFormInline.exclude"
-            :placeholder="t('permission.addExclude')"
+            :placeholder="t('systemPermission.addExclude')"
             class="w-full"
             clearable
             filterable
@@ -163,10 +176,10 @@ defineExpose({ getRef });
         </el-form-item>
       </re-col>
       <re-col :sm="24" :value="24" :xs="24">
-        <el-form-item :label="t('permission.addType')" prop="type">
+        <el-form-item :label="t('systemPermission.addType')" prop="type">
           <el-select
             v-model="newFormInline.type"
-            :placeholder="t('permission.addType')"
+            :placeholder="t('systemPermission.addType')"
             :reserve-keyword="false"
             class="w-full"
             clearable
@@ -176,66 +189,90 @@ defineExpose({ getRef });
           >
             <el-option
               v-for="item in valuesData"
-              :key="item.key"
+              :key="item.value"
               :label="item.label"
-              :value="item.key"
+              :value="item.value"
             />
           </el-select>
         </el-form-item>
       </re-col>
       <re-col :sm="24" :value="24" :xs="24">
         <el-form-item
+          v-if="newFormInline.type === FieldKeyChoices.DATETIME"
+          :label="t('systemPermission.addValue')"
+          prop="value"
+        >
+          <el-date-picker
+            v-model="newFormInline.value"
+            :shortcuts="getDateTimePickerShortcuts()"
+            type="datetime"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
+        </el-form-item>
+        <el-form-item
+          v-if="newFormInline.type === FieldKeyChoices.DATETIME_RANGE"
+          :label="t('systemPermission.addValue')"
+          prop="value"
+        >
+          <el-date-picker
+            v-model="newFormInline.value"
+            :shortcuts="getPickerShortcuts()"
+            type="datetimerange"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
+        </el-form-item>
+        <el-form-item
           v-if="
             newFormInline.type === FieldKeyChoices.TABLE_USER &&
-            hasGlobalAuth('list:systemSearchUsers')
+            hasAuth('list:systemSearchUser')
           "
-          :label="t('user.userId')"
+          :label="t('systemPermission.notice_user')"
           prop="notice_user"
         >
-          <search-users v-model="tableData" />
+          <SearchUser v-model="tableData" />
         </el-form-item>
 
         <el-form-item
           v-if="
             newFormInline.type === FieldKeyChoices.TABLE_DEPT &&
-            hasGlobalAuth('list:systemSearchDepts')
+            hasAuth('list:systemSearchDept')
           "
-          :label="t('dept.dept')"
+          :label="t('systemPermission.notice_dept')"
           prop="notice_dept"
         >
-          <search-depts v-model="tableData" />
+          <SearchDept v-model="tableData" />
         </el-form-item>
         <el-form-item
           v-if="
             newFormInline.type === FieldKeyChoices.TABLE_ROLE &&
-            hasGlobalAuth('list:systemSearchRoles')
+            hasAuth('list:systemSearchRole')
           "
-          :label="t('role.role')"
+          :label="t('systemPermission.notice_role')"
           prop="notice_role"
         >
-          <search-roles v-model="tableData" />
+          <SearchRole v-model="tableData" />
         </el-form-item>
 
         <el-form-item
           v-if="
             newFormInline.type === FieldKeyChoices.TABLE_MENU &&
-            hasGlobalAuth('list:systemSearchMenus')
+            hasAuth('list:systemSearchMenu')
           "
-          :label="t('menu.menus')"
-          prop="notice_role"
+          :label="t('systemPermission.notice_menu')"
+          prop="notice_menu"
         >
-          <search-menus v-model="tableData" />
+          <SearchMenu v-model="tableData" />
         </el-form-item>
       </re-col>
       <re-col :sm="24" :value="24" :xs="24">
         <el-form-item
           v-if="showValueInput"
-          :label="t('permission.addValue')"
+          :label="t('systemPermission.addValue')"
           prop="value"
         >
           <el-input
             v-model="newFormInline.value"
-            :placeholder="t('permission.addValue')"
+            :placeholder="t('systemPermission.addValue')"
             clearable
           />
         </el-form-item>

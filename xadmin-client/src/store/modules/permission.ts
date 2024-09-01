@@ -1,10 +1,16 @@
 import { defineStore } from "pinia";
-import { store } from "@/store";
-import type { cacheType } from "./types";
-import { constantMenus } from "@/router";
-import { debounce, getKeyList } from "@pureadmin/utils";
+import {
+  ascending,
+  type cacheType,
+  constantMenus,
+  debounce,
+  filterNoPermissionTree,
+  filterTree,
+  formatFlatteningRoutes,
+  getKeyList,
+  store
+} from "../utils";
 import { useMultiTagsStoreHook } from "./multiTags";
-import { ascending, filterNoPermissionTree, filterTree } from "@/router/utils";
 
 export const usePermissionStore = defineStore({
   id: "pure-permission",
@@ -13,17 +19,28 @@ export const usePermissionStore = defineStore({
     constantMenus,
     // 整体路由生成的菜单（静态、动态）
     wholeMenus: [],
+    // 整体路由（一维数组格式）
+    flatteningRoutes: [],
     // 缓存页面keepAlive
     cachePageList: [],
-    routes: []
+    // 全局的授权
+    permissionAuths: []
   }),
   actions: {
+    handleWholeAuths(auths: any[]) {
+      this.permissionAuths = {};
+      auths.forEach(auth => {
+        this.permissionAuths[auth] = true;
+      });
+    },
     /** 组装整体路由生成的菜单 */
     handleWholeMenus(routes: any[]) {
       this.wholeMenus = filterNoPermissionTree(
         filterTree(ascending(this.constantMenus.concat(routes)))
       );
-      this.routes = this.constantMenus.concat(routes);
+      this.flatteningRoutes = formatFlatteningRoutes(
+        this.constantMenus.concat(routes)
+      );
     },
     cacheOperate({ mode, name }: cacheType) {
       const delIndex = this.cachePageList.findIndex(v => v === name);
@@ -35,7 +52,9 @@ export const usePermissionStore = defineStore({
           this.cachePageList.push(name);
           break;
         case "delete":
-          delIndex !== -1 && this.cachePageList.splice(delIndex, 1);
+          if (delIndex !== -1) {
+            this.cachePageList.splice(delIndex, 1);
+          }
           break;
       }
       /** 监听缓存页面是否存在于标签页，不存在则删除 */
@@ -43,12 +62,16 @@ export const usePermissionStore = defineStore({
         let cacheLength = this.cachePageList.length;
         const nameList = getKeyList(useMultiTagsStoreHook().multiTags, "name");
         while (cacheLength > 0) {
-          nameList.findIndex(v => v === this.cachePageList[cacheLength - 1]) ===
-            -1 &&
+          if (
+            nameList.findIndex(
+              v => v === this.cachePageList[cacheLength - 1]
+            ) === -1
+          ) {
             this.cachePageList.splice(
               this.cachePageList.indexOf(this.cachePageList[cacheLength - 1]),
               1
             );
+          }
           cacheLength--;
         }
       })();
@@ -57,6 +80,8 @@ export const usePermissionStore = defineStore({
     clearAllCachePage() {
       this.wholeMenus = [];
       this.cachePageList = [];
+      this.flatteningRoutes = [];
+      this.metaAuths = [];
     }
   }
 });

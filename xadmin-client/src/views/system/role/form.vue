@@ -7,42 +7,60 @@ import {
   ref,
   watch
 } from "vue";
-import { formRules } from "./utils/rule";
-import { FormProps } from "./utils/types";
-import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import { getKeyList, isAllEmpty } from "@pureadmin/utils";
 import { match } from "pinyin-pro";
 import { useI18n } from "vue-i18n";
 import { transformI18n } from "@/plugins/i18n";
-import More2Fill from "@iconify-icons/ri/more-2-fill";
 import Reset from "@iconify-icons/ri/restart-line";
+import More2Fill from "@iconify-icons/ri/more-2-fill";
 import { MenuChoices } from "@/views/system/constants";
-import { getRoleDetailApi } from "@/api/system/role";
-import { hasAuth } from "@/router/utils";
+import { getKeyList, isAllEmpty } from "@pureadmin/utils";
+import { useApiAuth } from "./utils/hook";
+import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+
+interface FormProps {
+  pk?: string;
+  field: any[];
+  fields?: object;
+  menuTreeData: any[];
+}
 
 const props = withDefaults(defineProps<FormProps>(), {
-  isAdd: () => true,
-  showColumns: () => [],
   menuTreeData: () => [],
-  formInline: () => ({
-    pk: 0,
-    name: "",
-    code: "",
-    description: "",
-    menu: [],
-    field: [],
-    is_active: true
-  })
+  pk: undefined,
+  fields: () => ({}),
+  field: () => []
 });
+
+const menu = defineModel({ type: Array<any> });
+
+const { locale, t } = useI18n();
+const { api, auth } = useApiAuth();
+
+const treeRoleRef = ref();
+const searchValue = ref("");
+const loading = ref(false);
+
+const formData = ref({
+  menu: menu.value,
+  fields: props.fields,
+  field: props.field
+});
+
+const emit = defineEmits<{ (e: "change", v: { fields; menu }) }>();
+
+const handleChange = () => {
+  formatMenuFields();
+  emit("change", { ...formData.value });
+};
+
 const customNodeClass = data => {
-  if (data?.menu_type === MenuChoices.DIRECTORY) {
+  if (data?.menu_type?.value === MenuChoices.DIRECTORY) {
     return "is-penultimate";
-  } else if (data?.menu_type === MenuChoices.MENU) {
+  } else if (data?.menu_type?.value === MenuChoices.MENU) {
     return "is-permission";
   }
   return null;
 };
-const { locale } = useI18n();
 
 const filterMenuNode = (value: string, data: any) => {
   if (!value) return true;
@@ -59,46 +77,50 @@ const filterMenuNode = (value: string, data: any) => {
           ))
     : false;
 };
-const ruleFormRef = ref();
-const treeRoleRef = ref();
-const newFormInline = ref(props.formInline);
-const searchValue = ref("");
-const loading = ref(false);
 
-function getRef() {
-  return ruleFormRef.value;
-}
+const formatMenuFields = () => {
+  const menu = treeRoleRef.value!.getCheckedKeys(false);
+  formData.value.menu = menu.filter(x => {
+    return x.indexOf("+") === -1;
+  });
+  menu.filter(x => {
+    return x.toString().indexOf("+") > -1;
+  });
+  const fields = {};
+  menu.forEach(item => {
+    if (item.indexOf("+") > -1 && !item.startsWith("+")) {
+      let data = item.split("+");
+      let val = fields[data[0]];
+      if (!val) {
+        fields[data[0]] = [data[1]];
+      } else {
+        fields[data[0]].push(data[1]);
+      }
+    }
+  });
+  formData.value.fields = fields;
+};
 
-function getTreeRef() {
-  return treeRoleRef.value;
-}
-
-const { t } = useI18n();
-const ifEnableOptions = [
-  { label: t("labels.enable"), value: true },
-  { label: t("labels.disable"), value: false }
-];
 watch(searchValue, val => {
   treeRoleRef.value!.filter(val);
 });
-defineExpose({ getRef, getTreeRef });
 const initData = () => {
   nextTick(() => {
     treeRoleRef.value!.setCheckedKeys(
-      [...newFormInline.value.menu, ...newFormInline.value.field],
+      [...formData.value.menu, ...formData.value.field],
       false
     );
   });
 };
 const getCheckedMenu = pk => {
-  if (pk && hasAuth("detail:systemRole")) {
+  if (pk && auth.detail) {
     loading.value = true;
-    getRoleDetailApi(pk).then(({ code, data }) => {
+    api.detail(pk).then(({ code, data }) => {
       if (code === 1000) {
-        newFormInline.value.menu = data?.menu;
+        formData.value.menu = getKeyList(data?.menu ?? [], "pk");
         Object.keys(data?.field).forEach(key => {
           data?.field[key].forEach(val => {
-            newFormInline.value.field.push(`${key}+${val}`);
+            formData.value.field.push(`${key}+${val}`);
           });
         });
         initData();
@@ -108,7 +130,7 @@ const getCheckedMenu = pk => {
   }
 };
 onMounted(() => {
-  getCheckedMenu(newFormInline.value.pk);
+  getCheckedMenu(props.pk);
 });
 const buttonClass = computed(() => {
   return [
@@ -147,18 +169,11 @@ function toggleSelectAll(status, keys: Array<string> | null = null) {
       nodes[i].checked = status;
     }
   }
+  handleChange();
 }
 
-function checkField(data, status = true) {
-  toggleSelectAll(true, getKeyList(data.children, "pk"));
-}
 function nodeClick(value, node) {
-  if (
-    value.pk.toString().indexOf("+") > 0 &&
-    ((props.showColumns.length > 0 &&
-      props.showColumns.indexOf("field") > -1) ||
-      true)
-  ) {
+  if (value.pk.toString().indexOf("+") > 0) {
     node.checked = !node.checked;
   }
 }
@@ -171,214 +186,153 @@ function onReset() {
 </script>
 
 <template>
-  <el-form
-    ref="ruleFormRef"
-    :model="newFormInline"
-    :rules="formRules"
-    label-width="100px"
-  >
-    <el-form-item :label="t('role.name')" prop="name">
-      <el-input
-        v-model="newFormInline.name"
-        :disabled="!props.isAdd && props.showColumns.indexOf('name') === -1"
-        :placeholder="t('role.verifyRoleName')"
-        clearable
-      />
-    </el-form-item>
-
-    <el-form-item :label="t('role.code')" prop="code">
-      <el-input
-        v-model="newFormInline.code"
-        :disabled="!props.isAdd && props.showColumns.indexOf('code') === -1"
-        :placeholder="t('role.verifyRoleCode')"
-        clearable
-      />
-    </el-form-item>
-    <el-form-item :label="t('labels.status')" prop="is_active">
-      <el-radio-group
-        v-model="newFormInline.is_active"
-        :disabled="
-          !props.isAdd && props.showColumns.indexOf('is_active') === -1
-        "
-      >
-        <el-radio-button
-          v-for="item in ifEnableOptions"
-          :key="item.label"
-          :value="item.value"
-          >{{ item.label }}
-        </el-radio-button>
-      </el-radio-group>
-    </el-form-item>
-    <el-form-item :label="t('labels.description')">
-      <el-input
-        v-model="newFormInline.description"
-        :disabled="
-          !props.isAdd && props.showColumns.indexOf('description') === -1
-        "
-        :placeholder="t('labels.verifyDescription')"
-        type="textarea"
-      />
-    </el-form-item>
-    <el-form-item :label="t('role.permissions')">
-      <div class="flex items-center h-[34px] w-full mb-2">
-        <el-input
-          v-model="searchValue"
-          :placeholder="t('menu.verifyTitle')"
-          class="flex-1"
-          clearable
-        >
-          <template #suffix>
-            <el-icon class="el-input__icon">
-              <IconifyIconOffline
-                v-show="searchValue.length === 0"
-                icon="ri:search-line"
-              />
-            </el-icon>
-          </template>
-        </el-input>
-        <el-dropdown :hide-on-click="false">
+  <div class="flex items-center h-[34px] w-full mb-2">
+    <el-input
+      v-model="searchValue"
+      :placeholder="t('systemRole.menuTitle')"
+      class="flex-1"
+      clearable
+    >
+      <template #suffix>
+        <el-icon class="el-input__icon">
           <IconifyIconOffline
-            :icon="More2Fill"
-            class="w-[28px] cursor-pointer"
-            width="18px"
+            v-show="searchValue.length === 0"
+            icon="ri:search-line"
           />
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item>
-                <el-button
-                  :class="buttonClass"
-                  link
-                  type="primary"
-                  @click="toggleSelectAll(!selectAll)"
-                >
-                  {{
-                    selectAll
-                      ? t("buttons.unSelectAll")
-                      : t("buttons.selectAll")
-                  }}
-                </el-button>
-              </el-dropdown-item>
-              <el-dropdown-item>
-                <el-button
-                  :class="buttonClass"
-                  link
-                  type="primary"
-                  @click="toggleRowExpansionAll(!isExpand)"
-                >
-                  {{
-                    isExpand
-                      ? t("buttons.hscollapseAll")
-                      : t("buttons.hsexpendAll")
-                  }}
-                </el-button>
-              </el-dropdown-item>
-              <el-dropdown-item>
-                <el-button
-                  :class="buttonClass"
-                  link
-                  type="primary"
-                  @click="checkStrictly = !checkStrictly"
-                >
-                  {{
-                    checkStrictly
-                      ? t("menu.checkUnStrictly")
-                      : t("menu.checkStrictly")
-                  }}
-                </el-button>
-              </el-dropdown-item>
-              <el-dropdown-item>
-                <el-button
-                  :class="buttonClass"
-                  :icon="useRenderIcon(Reset)"
-                  link
-                  type="primary"
-                  @click="onReset"
-                >
-                  {{ t("buttons.hsreset") }}
-                </el-button>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </div>
-      <!--      <div class="overflow-y-auto w-full h-[30vh]">-->
-      <div>
-        <el-tree
-          ref="treeRoleRef"
-          v-loading="loading"
-          :check-strictly="checkStrictly"
-          :data="props.menuTreeData"
-          :default-expand-all="isExpand"
-          :expand-on-click-node="true"
-          :filter-node-method="filterMenuNode"
-          :props="{ class: customNodeClass }"
-          :show-checkbox="
-            props.isAdd ||
-            (props.showColumns.indexOf('field') > -1 &&
-              props.showColumns.indexOf('menu') > -1)
-          "
-          class="w-full"
-          highlight-current
-          node-key="pk"
-          @node-click="nodeClick"
-        >
-          <template #default="{ data }">
-            <div style="height: 30px">
-              <span
-                :class="[
-                  'pr-1',
-                  'rounded',
-                  'flex',
-                  'items-center',
-                  'select-none',
-                  'w-full'
-                ]"
-              >
-                <component :is="useRenderIcon(data?.meta?.icon)" class="m-1" />
-                <template v-if="data.model">
-                  {{ `${transformI18n(data?.meta?.title)}` }}
-                  <!--                  <component :is="useRenderIcon('ep:reading')" class="m-1" />-->
-                </template>
-                <template v-else>
-                  <template v-if="data?.label">
-                    {{ `${data?.label} (${data?.name})` }}
-                    <el-button-group>
-                      <el-button
-                        v-if="data.parent === null"
-                        plain
-                        text
-                        type="success"
-                        @click.stop="
-                          toggleSelectAll(true, getKeyList(data.children, 'pk'))
-                        "
-                        >全选</el-button
-                      >
-                      <el-button
-                        v-if="data.parent === null"
-                        plain
-                        text
-                        type="warning"
-                        @click.stop="
-                          toggleSelectAll(
-                            false,
-                            getKeyList(data.children, 'pk')
-                          )
-                        "
-                        >取消</el-button
-                      >
-                    </el-button-group>
-                  </template>
-                  <template v-else>
-                    `${transformI18n(data?.meta?.title)}`
-                  </template>
-                </template>
-              </span>
-            </div>
-          </template>
-        </el-tree>
-      </div>
-    </el-form-item>
-  </el-form>
+        </el-icon>
+      </template>
+    </el-input>
+    <el-dropdown :hide-on-click="false">
+      <IconifyIconOffline
+        :icon="More2Fill"
+        class="w-[28px] cursor-pointer"
+        width="18px"
+      />
+      <template #dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item>
+            <el-button
+              :class="buttonClass"
+              link
+              type="primary"
+              @click="toggleSelectAll(!selectAll)"
+            >
+              {{
+                selectAll ? t("buttons.unSelectAll") : t("buttons.selectAll")
+              }}
+            </el-button>
+          </el-dropdown-item>
+          <el-dropdown-item>
+            <el-button
+              :class="buttonClass"
+              link
+              type="primary"
+              @click="toggleRowExpansionAll(!isExpand)"
+            >
+              {{ isExpand ? t("buttons.collapseAll") : t("buttons.expendAll") }}
+            </el-button>
+          </el-dropdown-item>
+          <el-dropdown-item>
+            <el-button
+              :class="buttonClass"
+              link
+              type="primary"
+              @click="checkStrictly = !checkStrictly"
+            >
+              {{
+                checkStrictly
+                  ? t("buttons.checkUnStrictly")
+                  : t("buttons.checkStrictly")
+              }}
+            </el-button>
+          </el-dropdown-item>
+          <el-dropdown-item>
+            <el-button
+              :class="buttonClass"
+              :icon="useRenderIcon(Reset)"
+              link
+              type="primary"
+              @click="onReset"
+            >
+              {{ t("buttons.reset") }}
+            </el-button>
+          </el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
+    </el-dropdown>
+  </div>
+  <div>
+    <el-tree
+      ref="treeRoleRef"
+      v-loading="loading"
+      :check-strictly="checkStrictly"
+      :data="props.menuTreeData"
+      :default-expand-all="isExpand"
+      :expand-on-click-node="true"
+      :filter-node-method="filterMenuNode"
+      :props="{ class: customNodeClass }"
+      :show-checkbox="true"
+      class="w-full"
+      highlight-current
+      node-key="pk"
+      @checkChange="handleChange"
+      @node-click="nodeClick"
+    >
+      <template #default="{ data }">
+        <div style="height: 30px">
+          <span
+            :class="[
+              'pr-1',
+              'rounded',
+              'flex',
+              'items-center',
+              'select-none',
+              'w-full'
+            ]"
+          >
+            <component :is="useRenderIcon(data?.meta?.icon)" class="m-1" />
+            <template v-if="data.model">
+              {{ `${transformI18n(data?.meta?.title)}` }}
+              <!--                  <component :is="useRenderIcon('ep:reading')" class="m-1" />-->
+            </template>
+            <template v-else>
+              <template v-if="data?.label">
+                {{ `${data?.label} (${data?.name})` }}
+                <el-button-group>
+                  <el-button
+                    v-if="data.parent === null"
+                    plain
+                    text
+                    type="success"
+                    @click.stop="
+                      toggleSelectAll(true, getKeyList(data.children, 'pk'))
+                    "
+                    >全选</el-button
+                  >
+                  <el-button
+                    v-if="data.parent === null"
+                    plain
+                    text
+                    type="warning"
+                    @click.stop="
+                      toggleSelectAll(
+                        false,
+                        getKeyList(data.children ?? [], 'pk')
+                      )
+                    "
+                    >{{ t("buttons.cancel") }}</el-button
+                  >
+                </el-button-group>
+              </template>
+              <template v-else>
+                {{ transformI18n(data?.meta?.title) }}
+              </template>
+            </template>
+          </span>
+        </div>
+      </template>
+    </el-tree>
+  </div>
 </template>
 <style lang="scss" scoped>
 :deep(.el-tree-node__content) {

@@ -1,25 +1,24 @@
 import { $t, transformI18n } from "@/plugins/i18n";
 
-/** 自定义表单规则校验 */
 export const dirFormRules = {
   menu_type: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyType")),
+      message: transformI18n($t("systemMenu.verifyType")),
       trigger: "change"
     }
   ],
   title: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyTitle")),
+      message: transformI18n($t("systemMenu.verifyTitle")),
       trigger: "blur"
     }
   ],
   path: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyPath")),
+      message: transformI18n($t("systemMenu.verifyPath")),
       trigger: "blur"
     },
     {
@@ -27,7 +26,7 @@ export const dirFormRules = {
         if (value && value.startsWith("/")) {
           callback();
         } else {
-          callback(new Error(transformI18n($t("menu.pathError"))));
+          callback(new Error(transformI18n($t("systemMenu.pathError"))));
         }
       },
       trigger: "blur"
@@ -38,21 +37,21 @@ export const menuFormRules = {
   menu_type: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyType")),
+      message: transformI18n($t("systemMenu.verifyType")),
       trigger: "change"
     }
   ],
   title: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyTitle")),
+      message: transformI18n($t("systemMenu.verifyTitle")),
       trigger: "blur"
     }
   ],
   path: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyPath")),
+      message: transformI18n($t("systemMenu.verifyPath")),
       trigger: "blur"
     },
     {
@@ -60,7 +59,7 @@ export const menuFormRules = {
         if (value && value.startsWith("/")) {
           callback();
         } else {
-          callback(new Error(transformI18n($t("menu.pathError"))));
+          callback(new Error(transformI18n($t("systemMenu.pathError"))));
         }
       },
       trigger: "blur"
@@ -71,35 +70,35 @@ export const permissionFormRules = {
   menu_type: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyType")),
+      message: transformI18n($t("systemMenu.verifyType")),
       trigger: "change"
     }
   ],
   title: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyPermissionName")),
+      message: transformI18n($t("systemMenu.verifyPermissionName")),
       trigger: "blur"
     }
   ],
   name: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyPermissionCode")),
+      message: transformI18n($t("systemMenu.verifyPermissionCode")),
       trigger: "blur"
     }
   ],
   path: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyPath")),
+      message: transformI18n($t("systemMenu.verifyPath")),
       trigger: "blur"
     }
   ],
-  component: [
+  method: [
     {
       required: true,
-      message: transformI18n($t("menu.verifyRequestMethod")),
+      message: transformI18n($t("systemMenu.verifyRequestMethod")),
       trigger: "blur"
     }
   ]

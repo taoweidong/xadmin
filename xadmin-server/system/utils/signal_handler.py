@@ -11,13 +11,17 @@ from django.db import transaction
 from django.db.models.signals import post_save, pre_delete, m2m_changed, post_migrate
 from django.dispatch import receiver
 from django.utils import timezone
+from django.utils.translation import activate
+from django.utils.translation import gettext_lazy as _
 
 from common.base.magic import cache_response, MagicCacheData
 from common.core.config import SysConfig
 from common.core.models import DbAuditModel
 from common.core.serializers import get_sub_serializer_fields
+from common.core.utils import PrintLogFormat
 from system.models import Menu, NoticeMessage, UserRole, UserInfo, NoticeUserRead, DeptInfo, DataPermission, \
     SystemConfig, ModelLabelField
+from system.utils.notify import push_notice_messages
 
 logger = logging.getLogger(__name__)
 
@@ -32,36 +36,43 @@ def post_migrate_handler(sender, **kwargs):
     now = timezone.now()
     if label not in settings.PERMISSION_DATA_AUTH_APPS:
         return
+    plf = PrintLogFormat(f"App:({label})")
+    activate(settings.PERMISSION_FIELD_LANGUAGE_CODE)
     field_type = ModelLabelField.FieldChoices.DATA
-    obj, _ = ModelLabelField.objects.update_or_create(name=f"*", field_type=field_type, defaults={'label': "全部表"},
-                                                      parent=None)
+    obj, created = ModelLabelField.objects.update_or_create(name=f"*", field_type=field_type,
+                                                            defaults={'label': _("All tables")}, parent=None)
     ModelLabelField.objects.update_or_create(name=f"*", field_type=field_type, parent=obj,
-                                             defaults={'label': "全部字段"})
+                                             defaults={'label': _("All fields")})
     for field in DbAuditModel._meta.fields:
         ModelLabelField.objects.update_or_create(name=field.name, field_type=field_type, parent=obj,
                                                  defaults={'label': getattr(field, 'verbose_name', field.name)})
     for model in sender.models.values():
+        count = [0, 0]
         delete = True
         model_name = model._meta.model_name
         verbose_name = model._meta.verbose_name
         if 'relationship' in verbose_name and '_' in model_name:
             continue
-        obj, _ = ModelLabelField.objects.update_or_create(name=f"{label}.{model_name}", field_type=field_type,
-                                                          parent=None, defaults={'label': verbose_name})
+        obj, created = ModelLabelField.objects.update_or_create(name=f"{label}.{model_name}", field_type=field_type,
+                                                                parent=None, defaults={'label': verbose_name})
+        count[int(not created)] += 1
         # for field in model._meta.get_fields():
         for field in model._meta.fields:
-            ModelLabelField.objects.update_or_create(name=field.name, parent=obj, field_type=field_type,
-                                                     defaults={'label': field.verbose_name})
-            # defaults={'label': getattr(field, 'verbose_name', field.through._meta.verbose_name)})
+            _obj, created = ModelLabelField.objects.update_or_create(name=field.name, parent=obj, field_type=field_type,
+                                                                     defaults={'label': field.verbose_name})
+            count[int(not created)] += 1
+        PrintLogFormat(f"Model:({label}.{model_name})").warning(
+            f"update_or_create data permission, created:{count[0]} updated:{count[1]}")
+        # defaults={'label': getattr(field, 'verbose_name', field.through._meta.verbose_name)})
     if delete:
-        deleted, _rows_count = ModelLabelField.objects.filter(field_type=field_type, updated_time__lt=now).delete()
-        logger.warning(f"auto upsert deleted {deleted} row_count {_rows_count}")
-
-    if label == settings.PERMISSION_DATA_AUTH_APPS[0]:
+        deleted, _rows_count = ModelLabelField.objects.filter(field_type=field_type, updated_time__lt=now,
+                                                              name__startswith=f"{label}.").delete()
+        plf.info(f"deleted success, deleted:{deleted} row_count {_rows_count}")
+    if label == settings.PERMISSION_DATA_AUTH_APPS[-1]:
         try:
             get_sub_serializer_fields()
         except Exception as e:
-            logger.error(f"auto get sub serializer fields failed. {e}")
+            plf.error(f"auto get sub serializer fields failed. {e}")
 
 
 @receiver(m2m_changed)
@@ -102,6 +113,8 @@ def invalid_notify_caches(instance, pk_set):
     if instance.notice_type == NoticeMessage.NoticeChoices.DEPT:
         pks = UserInfo.objects.filter(dept__in=pk_set).values_list('pk', flat=True)
     if pks:
+        if instance.publish:
+            push_notice_messages(instance, set(pks))
         for pk in set(pks):
             invalid_notify_cache(pk)
 
@@ -114,9 +127,11 @@ def invalid_user_cache(user_pk):
     cache_response.invalid_cache(f'MenuView_list_{user_pk}_*')
     invalid_notify_cache(user_pk)
 
+
 def invalid_superuser_cache():
     for pk in UserInfo.objects.filter(is_superuser=True).values_list('pk', flat=True):
         invalid_user_cache(pk)
+
 
 def invalid_notify_cache(pk):
     cache_response.invalid_cache(f'UserNoticeMessage_unread_{pk}_*')
@@ -130,6 +145,7 @@ def invalid_roles_cache(instance):
 
 @receiver([post_save, pre_delete])
 def clean_cache_handler(sender, instance, **kwargs):
+    update_fields = kwargs.get('update_fields', [])
     if issubclass(sender, Menu):
         cache_response.invalid_cache('MenuView_list_*')
         queryset = instance.userrole_set.values_list('userinfo', flat=True)
@@ -153,22 +169,11 @@ def clean_cache_handler(sender, instance, **kwargs):
         invalid_roles_cache(instance)
         logger.info(f"invalid cache {sender}")
 
-    if issubclass(sender, NoticeMessage):
-        pk_set = None
-        if instance.notice_type == NoticeMessage.NoticeChoices.NOTICE:
-            invalid_notify_cache('*')
-        elif instance.notice_type == NoticeMessage.NoticeChoices.DEPT:
-            pk_set = instance.notice_dept.values_list('pk', flat=True)
-        elif instance.notice_type == NoticeMessage.NoticeChoices.ROLE:
-            pk_set = instance.notice_role.values_list('pk', flat=True)
-        else:
-            pk_set = instance.notice_user.values_list('pk', flat=True)
-        if pk_set:
-            invalid_notify_caches(instance, pk_set)
-        logger.info(f"invalid cache {sender}")
-
     if issubclass(sender, UserInfo):
-        invalid_user_cache(instance.pk)
+        if update_fields is None or {'roles', 'rules', 'dept', 'mode_type'} & set(update_fields):
+            invalid_user_cache(instance.pk)
+        else:
+            cache_response.invalid_cache(f'UserInfoView_retrieve_{instance.pk}')
         logger.info(f"invalid cache {sender}")
 
     if issubclass(sender, NoticeUserRead):
@@ -178,6 +183,25 @@ def clean_cache_handler(sender, instance, **kwargs):
         SysConfig.invalid_config_cache(instance.key)
         if instance.key in ['PERMISSION_DATA', 'PERMISSION_FIELD']:
             invalid_user_cache('*')
+
+
+@receiver([post_save])
+def clean_cache_handler_post_save(sender, instance, **kwargs):
+    if issubclass(sender, NoticeMessage):
+        pk_set = None
+        if instance.notice_type == NoticeMessage.NoticeChoices.NOTICE:
+            invalid_notify_cache('*')
+            if instance.publish:
+                push_notice_messages(instance, UserInfo.objects.values_list('pk', flat=True))
+        elif instance.notice_type == NoticeMessage.NoticeChoices.DEPT:
+            pk_set = instance.notice_dept.values_list('pk', flat=True)
+        elif instance.notice_type == NoticeMessage.NoticeChoices.ROLE:
+            pk_set = instance.notice_role.values_list('pk', flat=True)
+        else:
+            pk_set = instance.notice_user.values_list('pk', flat=True)
+        if pk_set:
+            invalid_notify_caches(instance, pk_set)
+        logger.info(f"invalid cache {sender}")
 
 
 @receiver([pre_delete])

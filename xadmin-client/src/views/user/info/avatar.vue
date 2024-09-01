@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import ReCol from "@/components/ReCol";
-import { hasAuth } from "@/router/utils";
-import croppingUpload from "@/components/RePictureUpload/index.vue";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
+import ReCol from "@/components/ReCol";
+import { useApiAuth } from "./utils/hook";
+import croppingUpload from "@/components/RePictureUpload";
 
 defineOptions({
   name: "editUserAvatar"
@@ -22,6 +22,7 @@ const handleUpdate = () => {
 };
 const avatarInfo = ref();
 const { t } = useI18n();
+const { auth } = useApiAuth();
 
 function onCropper({ blob }) {
   avatarInfo.value = blob;
@@ -32,7 +33,7 @@ function onCropper({ blob }) {
   <el-form ref="ruleFormRef" label-width="82px">
     <el-row :gutter="30">
       <re-col :sm="24" :value="24" :xs="24">
-        <el-form-item :label="t('user.avatar')">
+        <el-form-item :label="t('userinfo.avatar')">
           <cropping-upload
             :canvasOption="{ width: 512, height: 512 }"
             :circled="true"
@@ -45,12 +46,12 @@ function onCropper({ blob }) {
     </el-row>
     <el-form-item>
       <el-popconfirm
-        v-if="hasAuth('upload:UserInfoAvatar')"
-        :title="t('buttons.hsconfirmdupdate')"
+        v-if="auth.upload"
+        :title="t('buttons.confirmUpdate')"
         @confirm="handleUpdate"
       >
         <template #reference>
-          <el-button>{{ t("buttons.hssave") }}</el-button>
+          <el-button>{{ t("buttons.save") }}</el-button>
         </template>
       </el-popconfirm>
     </el-form-item>

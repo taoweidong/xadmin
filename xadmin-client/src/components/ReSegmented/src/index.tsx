@@ -8,6 +8,7 @@ import {
   useResizeObserver
 } from "@pureadmin/utils";
 import {
+  computed,
   defineComponent,
   getCurrentInstance,
   h,
@@ -29,14 +30,29 @@ const props = {
     require: false,
     default: "0"
   },
-  /** 将宽度调整为父元素宽度	 */
+  defaultValue: {
+    type: undefined,
+    require: false,
+    default: "0"
+  },
+  /** 将宽度调整为父元素宽度   */
   block: {
     type: Boolean,
     default: false
   },
-  /** 控件尺寸   */
+  /** 控件尺寸 */
   size: {
     type: String as PropType<"small" | "default" | "large">
+  },
+  /** 是否全局禁用，默认 `false` */
+  disabled: {
+    type: Boolean,
+    default: false
+  },
+  /** 当内容发生变化时，设置 `resize` 可使其自适应容器位置 */
+  resize: {
+    type: Boolean,
+    default: false
   }
 };
 
@@ -54,19 +70,22 @@ export default defineComponent({
     const instance = getCurrentInstance()!;
     const curIndex = isNumber(props.modelValue)
       ? toRef(props, "modelValue")
-      : ref(0);
+      : isNumber(props.defaultValue)
+        ? ref(computed(() => props.defaultValue))
+        : ref(0);
 
     function handleChange({ option, index }, event: Event) {
-      if (option.disabled) return;
+      if (props.disabled || option.disabled) return;
       event.preventDefault();
-      isNumber(props.modelValue)
-        ? emit("update:modelValue", index)
-        : (curIndex.value = index);
+      if (isNumber(props.modelValue)) {
+        emit("update:modelValue", index);
+      }
       segmentedItembg.value = "";
       emit("change", { index, option });
     }
 
     function handleMouseenter({ option, index }, event: Event) {
+      if (props.disabled) return;
       event.preventDefault();
       curMouseActive.value = index;
       if (option.disabled || curIndex.value === index) {
@@ -79,6 +98,7 @@ export default defineComponent({
     }
 
     function handleMouseleave(_, event: Event) {
+      if (props.disabled) return;
       event.preventDefault();
       curMouseActive.value = -1;
     }
@@ -87,8 +107,8 @@ export default defineComponent({
       nextTick(() => {
         const curLabelRef = instance?.proxy?.$refs[`labelRef${index}`] as ElRef;
         if (!curLabelRef) return;
-        width.value = curLabelRef?.clientWidth;
-        translateX.value = curLabelRef?.offsetLeft;
+        width.value = curLabelRef.clientWidth;
+        translateX.value = curLabelRef.offsetLeft;
         initStatus.value = true;
       });
     }
@@ -101,7 +121,9 @@ export default defineComponent({
       });
     }
 
-    props.block && handleResizeInit();
+    if (props.block || props.resize) {
+      handleResizeInit();
+    }
 
     watch(
       () => curIndex.value,
@@ -115,7 +137,9 @@ export default defineComponent({
       }
     );
 
-    watch(() => props.size, handleResizeInit);
+    watch(() => props.size, handleResizeInit, {
+      immediate: true
+    });
 
     const rendLabel = () => {
       return props.options.map((option, index) => {
@@ -124,14 +148,16 @@ export default defineComponent({
             ref={`labelRef${index}`}
             class={[
               "pure-segmented-item",
-              option?.disabled && "pure-segmented-item-disabled"
+              (props.disabled || option?.disabled) &&
+                "pure-segmented-item-disabled"
             ]}
             style={{
               background:
                 curMouseActive.value === index ? segmentedItembg.value : "",
-              color:
-                !option.disabled &&
-                (curIndex.value === index || curMouseActive.value === index)
+              color: props.disabled
+                ? null
+                : !option.disabled &&
+                    (curIndex.value === index || curMouseActive.value === index)
                   ? isDark.value
                     ? "rgba(255, 255, 255, 0.85)"
                     : "rgba(0,0,0,.88)"

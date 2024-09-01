@@ -8,32 +8,26 @@ import logging
 
 from django_filters import rest_framework as filters
 
-from common.base.utils import get_choices_dict
-from common.core.modelset import BaseModelSet
-from common.core.response import ApiResponse
+from common.core.filter import BaseFilterSet
+from common.core.modelset import BaseModelSet, ImportExportDataAction
 from system.models import DataPermission
-from system.utils.serializer import DataPermissionSerializer
+from system.serializers.permission import DataPermissionSerializer
 
 logger = logging.getLogger(__name__)
 
 
-class DataPermissionFilter(filters.FilterSet):
+class DataPermissionFilter(BaseFilterSet):
+    pk = filters.UUIDFilter(field_name='id')
     name = filters.CharFilter(field_name='name', lookup_expr='icontains')
-    description = filters.CharFilter(field_name='description', lookup_expr='icontains')
-    pk = filters.CharFilter(field_name='id')
 
     class Meta:
         model = DataPermission
-        fields = ['pk', 'mode_type', 'is_active']
+        fields = ['pk', 'name', 'mode_type', 'is_active', 'description']
 
 
-class DataPermissionView(BaseModelSet):
+class DataPermissionView(BaseModelSet, ImportExportDataAction):
+    """数据权限管理"""
     queryset = DataPermission.objects.all()
     serializer_class = DataPermissionSerializer
-
     ordering_fields = ['created_time']
     filterset_class = DataPermissionFilter
-
-    def list(self, request, *args, **kwargs):
-        data = super().list(request, *args, **kwargs).data
-        return ApiResponse(**data, choices_dict=get_choices_dict(DataPermission.ModeChoices.choices))

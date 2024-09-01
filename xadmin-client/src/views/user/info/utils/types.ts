@@ -1,3 +1,5 @@
+type ChoicesLabel = { label?: string };
+
 interface FormItemProps {
   title?: string;
   /** ID */
@@ -9,18 +11,17 @@ interface FormItemProps {
   /** 头像 */
   avatar: string;
   /** 手机号码 */
-  mobile?: string;
+  phone?: string;
   /** 邮箱 */
   email?: string;
-  /** 性别 */
-  gender_display?: string;
-  dept_info?: {
+  dept?: {
     name?: string;
     pk?: number;
   };
-  gender?: number;
+  /** 性别 */
+  gender?: number | ChoicesLabel;
   /** 角色 */
-  roles_info?: any[];
+  roles?: any[];
   /** 密码 */
   password?: string;
   /** 注册时间 */
@@ -31,7 +32,7 @@ interface FormItemProps {
 
 interface FormProps {
   formInline: FormItemProps;
-  choicesDict: any[];
+  genderChoices: any[];
 }
 
 interface FormPasswordProps {

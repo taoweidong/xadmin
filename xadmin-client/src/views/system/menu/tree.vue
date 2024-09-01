@@ -1,35 +1,39 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
+import { match } from "pinyin-pro";
+import { getMenuFromPk } from "@/utils";
+import { useVModel } from "@vueuse/core";
+import { useApiAuth } from "./utils/hook";
+import { isAllEmpty } from "@pureadmin/utils";
+import { transformI18n } from "@/plugins/i18n";
+import { Tree, TreeFormProps } from "./utils/types";
+import { MenuChoices } from "@/views/system/constants";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { computed, getCurrentInstance, onMounted, ref, watch } from "vue";
 
-import DocumentAdd from "@iconify-icons/ep/document-add";
-import Delete from "@iconify-icons/ep/delete";
-import { transformI18n } from "@/plugins/i18n";
-import { hasAuth } from "@/router/utils";
-import { useI18n } from "vue-i18n";
-import { isAllEmpty } from "@pureadmin/utils";
-import { match } from "pinyin-pro";
-import { getMenuFromPk } from "@/utils";
-import Reset from "@iconify-icons/ri/restart-line";
-
-import Right from "@iconify-icons/ep/bottom-right";
 import Back from "@iconify-icons/ep/back";
-import More2Fill from "@iconify-icons/ri/more-2-fill";
-import ExpandIcon from "./svg/expand.svg?component";
-import UnExpandIcon from "./svg/unexpand.svg?component";
+import Delete from "@iconify-icons/ep/delete";
 import Refresh from "@iconify-icons/ep/refresh";
-import { useVModel } from "@vueuse/core";
-import { Tree, TreeFormProps } from "./utils/types";
-import { MenuChoices } from "@/views/system/constants";
+import Reset from "@iconify-icons/ri/restart-line";
+import Right from "@iconify-icons/ep/bottom-right";
+import ExpandIcon from "./svg/expand.svg?component";
+import More2Fill from "@iconify-icons/ri/more-2-fill";
+import UnExpandIcon from "./svg/unexpand.svg?component";
+import DocumentAdd from "@iconify-icons/ep/document-add";
+import Download from "@iconify-icons/ep/download";
+import Upload from "@iconify-icons/ep/upload";
+
+const { t } = useI18n();
+const { locale } = useI18n();
+const { auth } = useApiAuth();
+const { proxy } = getCurrentInstance();
 
 const treeRef = ref();
-
-const isExpand = ref(false);
-const checkStrictly = ref(true);
 const searchValue = ref("");
 const highlightMap = ref({});
-const { proxy } = getCurrentInstance();
-const { t } = useI18n();
+const loading = ref(true);
+const isExpand = ref(false);
+const checkStrictly = ref(true);
 
 // 声明 props 默认值
 // 推荐阅读：https://cn.vuejs.org/guide/typescript/composition-api.html#typing-component-props
@@ -57,6 +61,7 @@ const props = withDefaults(defineProps<TreeFormProps>(), {
       transition_enter: "",
       transition_leave: "",
       is_hidden_tag: false,
+      fixed_tag: false,
       dynamic_level: 0
     }
   })
@@ -71,12 +76,14 @@ const emit = defineEmits([
   "handleDelete",
   "addNewMenu",
   "handleDrag",
-  "handleManyDelete"
+  "handleManyDelete",
+  "exportData",
+  "importData"
 ]);
+
 const formInline = useVModel(props, "formInline", emit);
 const parentIds = useVModel(props, "parentIds", emit);
-const { locale } = useI18n();
-const loading = ref(true);
+
 const filterMenuNode = (value: string, data: any) => {
   if (!value) return true;
   return value
@@ -92,6 +99,7 @@ const filterMenuNode = (value: string, data: any) => {
           ))
     : false;
 };
+
 const initMenuData = value => {
   Object.keys(value).forEach(key => {
     (formInline as any).value[key] = value[key];
@@ -123,8 +131,8 @@ function nodeClick(value) {
 
 function toggleRowExpansionAll(status) {
   isExpand.value = status;
-  const nodes = (proxy.$refs["treeRef"] as any).store._getAllNodes();
-  for (let i = 0; i < nodes.length; i++) {
+  const nodes = (proxy.$refs["treeRef"] as any)?.store._getAllNodes();
+  for (let i = 0; i < nodes?.length; i++) {
     nodes[i].expanded = status;
   }
 }
@@ -160,6 +168,7 @@ const defaultProps = {
   children: "children",
   class: customNodeClass
 };
+
 const buttonClass = computed(() => {
   return [
     "!h-[20px]",
@@ -177,6 +186,7 @@ const handleDragDrop = (node1, node2, type) => {
 watch(searchValue, val => {
   treeRef.value!.filter(val);
 });
+
 onMounted(() => {
   setTimeout(() => {
     toggleRowExpansionAll(true);
@@ -190,21 +200,48 @@ onMounted(() => {
     <el-card :body-style="{ padding: '8px' }">
       <div class="flex items-center h-[34px]">
         <p
-          :title="t('menu.menus')"
+          :title="t('systemMenu.menus')"
           class="flex-1 ml-2 font-bold text-base truncate"
         >
-          {{ t("menu.menus") }}
+          {{ t("systemMenu.menus") }}
         </p>
+
+        <el-tooltip
+          v-if="auth.export"
+          :content="t('exportImport.export')"
+          effect="dark"
+          placement="top-start"
+        >
+          <el-button
+            :icon="useRenderIcon(Download)"
+            plain
+            size="small"
+            @click="emit('exportData', treeRef)"
+          />
+        </el-tooltip>
+        <el-tooltip
+          v-if="auth.import"
+          :content="t('exportImport.import')"
+          effect="dark"
+          placement="top-start"
+        >
+          <el-button
+            :icon="useRenderIcon(Upload)"
+            plain
+            size="small"
+            @click="emit('importData')"
+          />
+        </el-tooltip>
         <el-button
-          v-if="hasAuth('create:systemMenu')"
+          v-if="auth.create"
           class="ml-2"
           size="small"
           @click="emit('openDialog', 0)"
-          >{{ t("buttons.hsadd") }}
+          >{{ t("buttons.add") }}
         </el-button>
         <el-input
           v-model="searchValue"
-          :placeholder="t('menu.verifyTitle')"
+          :placeholder="t('systemMenu.verifyTitle')"
           class="flex-1"
           clearable
           size="small"
@@ -235,9 +272,7 @@ onMounted(() => {
                   @click="toggleRowExpansionAll(!isExpand)"
                 >
                   {{
-                    isExpand
-                      ? t("buttons.hscollapseAll")
-                      : t("buttons.hsexpendAll")
+                    isExpand ? t("buttons.collapseAll") : t("buttons.expendAll")
                   }}
                 </el-button>
               </el-dropdown-item>
@@ -251,8 +286,8 @@ onMounted(() => {
                 >
                   {{
                     checkStrictly
-                      ? t("menu.checkUnStrictly")
-                      : t("menu.checkStrictly")
+                      ? t("buttons.checkUnStrictly")
+                      : t("buttons.checkStrictly")
                   }}
                 </el-button>
               </el-dropdown-item>
@@ -264,10 +299,10 @@ onMounted(() => {
                   type="primary"
                   @click="onReset"
                 >
-                  {{ t("buttons.hsreset") }}
+                  {{ t("buttons.reset") }}
                 </el-button>
               </el-dropdown-item>
-              <el-dropdown-item v-if="hasAuth('list:systemMenu')">
+              <el-dropdown-item v-if="auth.list">
                 <el-button
                   :class="buttonClass"
                   :icon="useRenderIcon(Refresh)"
@@ -275,12 +310,12 @@ onMounted(() => {
                   type="primary"
                   @click="emit('getMenuData')"
                 >
-                  {{ t("buttons.hsreload") }}
+                  {{ t("buttons.reload") }}
                 </el-button>
               </el-dropdown-item>
-              <el-dropdown-item v-if="hasAuth('manyDelete:systemMenu')">
+              <el-dropdown-item v-if="auth.batchDelete">
                 <el-popconfirm
-                  :title="t('buttons.hsconfirmdelete')"
+                  :title="t('buttons.confirmDelete')"
                   @confirm="emit('handleManyDelete', treeRef)"
                 >
                   <template #reference>
@@ -290,7 +325,7 @@ onMounted(() => {
                       link
                       type="danger"
                     >
-                      {{ t("buttons.hsbatchdelete") }}
+                      {{ t("buttons.batchDelete") }}
                     </el-button>
                   </template>
                 </el-popconfirm>
@@ -309,7 +344,7 @@ onMounted(() => {
         :data="props.treeData"
         :default-expand-all="isExpand"
         :default-expanded-keys="parentIds"
-        :draggable="hasAuth('rank:systemMenu')"
+        :draggable="auth.rank"
         :expand-on-click-node="false"
         :filter-node-method="filterMenuNode"
         :props="defaultProps"
@@ -345,11 +380,8 @@ onMounted(() => {
           </span>
           <span class="flex items-center">
             <el-tooltip
-              v-if="
-                hasAuth('create:systemMenu') &&
-                data.menu_type !== MenuChoices.PERMISSION
-              "
-              :content="t('buttons.hsadd')"
+              v-if="auth.create && data.menu_type !== MenuChoices.PERMISSION"
+              :content="t('buttons.add')"
               class="box-item"
               effect="dark"
               placement="top-start"
@@ -363,8 +395,8 @@ onMounted(() => {
             </el-tooltip>
 
             <el-popconfirm
-              v-if="hasAuth('delete:systemMenu')"
-              :title="t('buttons.hsconfirmdelete')"
+              v-if="auth.delete"
+              :title="t('buttons.confirmDelete')"
               @confirm.stop="emit('handleDelete', data)"
             >
               <template #reference>
@@ -381,7 +413,7 @@ onMounted(() => {
               style="margin-left: 10px"
               type="success"
             >
-              {{ data.component }} {{ data.path }}
+              {{ data.method }} {{ data.path }}
             </el-text>
           </span>
         </template>

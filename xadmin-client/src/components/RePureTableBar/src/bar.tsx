@@ -4,9 +4,11 @@ import { useEpThemeStoreHook } from "@/store/modules/epTheme";
 import {
   computed,
   defineComponent,
+  getCurrentInstance,
   nextTick,
   type PropType,
   ref,
+  unref,
   watch
 } from "vue";
 import {
@@ -17,11 +19,13 @@ import {
   isFunction
 } from "@pureadmin/utils";
 
-import DragIcon from "./svg/drag.svg?component";
-import ExpandIcon from "./svg/expand.svg?component";
-import RefreshIcon from "./svg/refresh.svg?component";
-import SettingIcon from "./svg/settings.svg?component";
-import CollapseIcon from "./svg/collapse.svg?component";
+import Fullscreen from "@iconify-icons/ri/fullscreen-fill";
+import ExitFullscreen from "@iconify-icons/ri/fullscreen-exit-fill";
+import DragIcon from "@/assets/table-bar/drag.svg?component";
+import ExpandIcon from "@/assets/table-bar/expand.svg?component";
+import RefreshIcon from "@/assets/table-bar/refresh.svg?component";
+import SettingIcon from "@/assets/table-bar/settings.svg?component";
+import CollapseIcon from "@/assets/table-bar/collapse.svg?component";
 import { useI18n } from "vue-i18n";
 
 const props = {
@@ -42,30 +46,38 @@ const props = {
   isExpandAll: {
     type: Boolean,
     default: true
+  },
+  tableKey: {
+    type: [String, Number] as PropType<string | number>,
+    default: "0"
   }
 };
 
 export default defineComponent({
   name: "PureTableBar",
   props,
-  emits: ["refresh"],
+  emits: ["refresh", "change"],
   setup(props, { emit, slots, attrs }) {
     const size = ref("default");
     const loading = ref(false);
     const checkAll = ref(true);
+    const isFullscreen = ref(false);
     const isIndeterminate = ref(false);
+    const instance = getCurrentInstance()!;
     const isExpandAll = ref(props.isExpandAll);
-    const filterColumns = ref(
-      cloneDeep(props?.columns).filter(column =>
+    const filterColumns = computed(() => {
+      return cloneDeep(props?.columns).filter(column =>
         isBoolean(column?.hide)
           ? !column.hide
           : !(isFunction(column?.hide) && column?.hide())
-      )
-    );
+      );
+    });
     const checkedColumns = ref(
-      getKeyList(cloneDeep(filterColumns.value), "label")
+      getKeyList(cloneDeep(filterColumns.value ?? []), "label")
     );
-    const checkColumnList = ref(getKeyList(cloneDeep(props?.columns), "label"));
+    const checkColumnList = ref(
+      getKeyList(cloneDeep(props?.columns ?? []), "label")
+    );
     const dynamicColumns = ref(cloneDeep(props?.columns));
     const { t } = useI18n();
 
@@ -100,6 +112,18 @@ export default defineComponent({
         "border-solid",
         "border-[#dcdfe6]",
         "dark:border-[#303030]"
+      ];
+    });
+
+    const renderClass = computed(() => {
+      return [
+        "w-[99/100]",
+        "px-2",
+        "pb-2",
+        "bg-bg_color",
+        isFullscreen.value
+          ? ["!w-full", "!h-full", "z-[2002]", "fixed", "inset-0"]
+          : "mt-2"
       ];
     });
 
@@ -149,35 +173,59 @@ export default defineComponent({
       checkAll.value = true;
       isIndeterminate.value = false;
       dynamicColumns.value = cloneDeep(props?.columns);
-      checkColumnList.value = [];
-      checkColumnList.value = getKeyList(cloneDeep(props?.columns), "label");
+      checkColumnList.value = getKeyList(
+        cloneDeep(props?.columns ?? []),
+        "label"
+      );
       checkedColumns.value = getKeyList(
         cloneDeep(filterColumns.value),
         "label"
       );
     }
 
+    const handleChange = () => {
+      emit("change", {
+        dynamicColumns: dynamicColumns.value,
+        size: size.value,
+        renderClass: slots?.default ? "" : renderClass.value
+      });
+    };
+
     watch(props?.columns, () => {
       onReset();
     });
+
+    watch(
+      () => [dynamicColumns.value, renderClass.value],
+      () => {
+        handleChange();
+      },
+      { deep: true, immediate: true }
+    );
+
+    const sizeChange = (event, val) => {
+      event.stopPropagation();
+      size.value = val;
+      handleChange();
+    };
     const dropdown = {
       dropdown: () => (
-        <el-dropdown-menu class="translation">
+        <el-dropdown-menu class="translation" teleported={false}>
           <el-dropdown-item
             style={getDropdownItemStyle.value("large")}
-            onClick={() => (size.value = "large")}
+            onClick={event => sizeChange(event, "large")}
           >
             {t("tableBar.loose")}
           </el-dropdown-item>
           <el-dropdown-item
             style={getDropdownItemStyle.value("default")}
-            onClick={() => (size.value = "default")}
+            onClick={event => sizeChange(event, "default")}
           >
             {t("tableBar.default")}
           </el-dropdown-item>
           <el-dropdown-item
             style={getDropdownItemStyle.value("small")}
-            onClick={() => (size.value = "small")}
+            onClick={event => sizeChange(event, "small")}
           >
             {t("tableBar.compact")}
           </el-dropdown-item>
@@ -189,9 +237,9 @@ export default defineComponent({
     const rowDrop = (event: { preventDefault: () => void }) => {
       event.preventDefault();
       nextTick(() => {
-        const wrapper: HTMLElement = document.querySelector(
-          ".el-checkbox-group>div"
-        );
+        const wrapper: HTMLElement = (
+          instance?.proxy?.$refs[`GroupRef${unref(props.tableKey)}`] as any
+        ).$el.firstElementChild;
         Sortable.create(wrapper, {
           animation: 300,
           handle: ".drag-btn",
@@ -248,7 +296,7 @@ export default defineComponent({
 
     return () => (
       <>
-        <div {...attrs} class="w-[99/100] mt-2 px-2 pb-2 bg-bg_color">
+        <div {...attrs} class={[slots?.default ? renderClass.value : ""]}>
           <div class="flex justify-between w-full h-[60px] p-4">
             {slots?.title ? (
               slots.title()
@@ -311,13 +359,14 @@ export default defineComponent({
                     onChange={value => handleCheckAllChange(value)}
                   />
                   <el-button type="primary" link onClick={() => onReset()}>
-                    {t("buttons.hsreset")}
+                    {t("buttons.reset")}
                   </el-button>
                 </div>
 
                 <div class="pt-[6px] pl-[11px]">
                   <el-scrollbar max-height="36vh">
                     <el-checkbox-group
+                      ref={`GroupRef${unref(props.tableKey)}`}
                       modelValue={checkedColumns.value}
                       onChange={value => handleCheckedColumnsChange(value)}
                     >
@@ -363,12 +412,25 @@ export default defineComponent({
                   </el-scrollbar>
                 </div>
               </el-popover>
+              <el-divider direction="vertical" />
+
+              <iconifyIconOffline
+                class={["w-[16px]", iconClass.value]}
+                icon={isFullscreen.value ? ExitFullscreen : Fullscreen}
+                v-tippy={
+                  isFullscreen.value
+                    ? t("tableBar.exitFullscreen")
+                    : t("tableBar.fullscreen")
+                }
+                onClick={() => (isFullscreen.value = !isFullscreen.value)}
+              />
             </div>
           </div>
-          {slots.default({
-            size: size.value,
-            dynamicColumns: dynamicColumns.value
-          })}
+          {slots?.default &&
+            slots?.default({
+              size: size.value,
+              dynamicColumns: dynamicColumns.value
+            })}
         </div>
       </>
     );

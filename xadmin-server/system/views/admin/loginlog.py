@@ -8,32 +8,28 @@
 
 from django_filters import rest_framework as filters
 
-from common.base.utils import get_choices_dict
-from common.core.modelset import ListDeleteModelSet
-from common.core.response import ApiResponse
+from common.core.filter import BaseFilterSet, PkMultipleFilter
+from common.core.modelset import ListDeleteModelSet, OnlyExportDataAction
 from system.models import UserLoginLog
-from system.utils.serializer import UserLoginLogSerializer
+from system.serializers.log import UserLoginLogSerializer
 
 
-class UserLoginLogFilter(filters.FilterSet):
+class LoginLogFilter(BaseFilterSet):
     ipaddress = filters.CharFilter(field_name='ipaddress', lookup_expr='icontains')
     system = filters.CharFilter(field_name='system', lookup_expr='icontains')
     browser = filters.CharFilter(field_name='browser', lookup_expr='icontains')
     agent = filters.CharFilter(field_name='agent', lookup_expr='icontains')
-    creator_id = filters.NumberFilter(field_name='creator__id')
+    creator_id = PkMultipleFilter(input_type='api-search-user')
 
     class Meta:
         model = UserLoginLog
-        fields = ['creator_id', 'login_type']
+        fields = ['login_type', 'ipaddress', 'system', 'creator_id', 'browser', 'agent', 'created_time']
 
 
-class UserLoginLogView(ListDeleteModelSet):
+class LoginLogView(ListDeleteModelSet, OnlyExportDataAction):
+    """用户登录日志"""
     queryset = UserLoginLog.objects.all()
     serializer_class = UserLoginLogSerializer
 
     ordering_fields = ['created_time']
-    filterset_class = UserLoginLogFilter
-
-    def list(self, request, *args, **kwargs):
-        data = super().list(request, *args, **kwargs).data
-        return ApiResponse(**data, choices_dict=get_choices_dict(UserLoginLog.LoginTypeChoices.choices))
+    filterset_class = LoginLogFilter

@@ -3,24 +3,26 @@ import { useMenu } from "./utils/hook";
 
 import tree from "./tree.vue";
 import edit from "./edit.vue";
-import { hasAuth } from "@/router/utils";
+import { cloneDeep } from "lodash-es";
 
 defineOptions({
   name: "SystemMenu"
 });
 
 const {
-  menuData,
+  auth,
   treeData,
+  menuData,
+  modelList,
   parentIds,
   choicesDict,
-  menuChoices,
   menuUrlList,
-  modelList,
   defaultData,
-  openDialog,
+  exportData,
+  importData,
   addNewMenu,
   handleDrag,
+  openDialog,
   getMenuData,
   handleDelete,
   handleConfirm,
@@ -33,27 +35,31 @@ const {
     <el-row :gutter="24">
       <el-col :lg="13" :md="13" :sm="24" :xl="13" :xs="24">
         <tree
-          v-if="hasAuth('list:systemMenu')"
+          v-if="auth.list"
           v-model:form-inline="menuData"
           v-model:parent-ids="parentIds"
+          :auth="auth"
           :default-data="defaultData"
           :tree-data="treeData"
           @addNewMenu="addNewMenu"
+          @exportData="exportData"
           @getMenuData="getMenuData"
           @handleDelete="handleDelete"
           @handleDrag="handleDrag"
           @handleManyDelete="handleManyDelete"
+          @importData="importData"
           @openDialog="openDialog"
         />
       </el-col>
       <el-col :lg="11" :md="11" :sm="24" :xl="11" :xs="24">
         <div :style="{ height: `calc(100vh - 145px)` }" class="overflow-y-auto">
           <edit
-            v-if="hasAuth('list:systemMenu')"
-            :choices-dict="choicesDict"
+            v-if="auth.list"
+            :auth="auth"
             :form-inline="menuData"
-            :menu-choices="menuChoices"
+            :menu-choices="choicesDict['menu_type']"
             :menu-url-list="menuUrlList"
+            :method-choices="choicesDict['method']"
             :model-list="modelList"
             :tree-data="treeData"
             class="pt-10 pb-20"

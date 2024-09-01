@@ -9,6 +9,47 @@ xadmin-基于Django+vue3的rbac权限管理系统
 [https://xadmin.dvcloud.xin/](https://xadmin.dvcloud.xin/)
 账号密码：admin/admin123
 
+## 开发文档
+
+[https://docs.dvcloud.xin/](https://docs.dvcloud.xin/)
+
+## 本地环境运行 必须先配置好```redis```服务
+
+#### 数据库默认使用的是sqlite3
+
+## redis 配置
+
+#### 打开配置文件```config.py```,修改为自己的redis服务配置
+
+```python
+REDIS_HOST = "redis"
+REDIS_PORT = 6379
+REDIS_PASSWORD = "nineven"
+```
+
+## 数据库配置（开发环境默认使用的是sqlite3），正式环境建议使用MySQL或者postgresql
+
+#### 打开配置文件```config.py```,修改为自己的mysql服务配置
+
+```python
+### 更多数据库配置，参考官方文档：https://docs.djangoproject.com/zh-hans/5.0/ref/databases/
+
+# # mysql 数据库配置
+# # create database xadmin default character set utf8 COLLATE utf8_general_ci;
+# # grant all on xadmin.* to server@'127.0.0.1' identified by 'KGzKjZpWBp4R4RSa';
+# DB_ENGINE = 'django.db.backends.mysql'
+# DB_HOST = 'mariadb'
+# DB_PORT = 3306
+# DB_USER = 'server'
+# DB_DATABASE = 'xadmin'
+# DB_PASSWORD = 'KGzKjZpWBp4R4RSa'
+# DB_OPTIONS = {'init_command': 'SET sql_mode="STRICT_TRANS_TABLES"', 'charset': 'utf8mb4'}
+
+
+# sqlite3 配置，和 mysql配置 二选一, 默认sqlite数据库
+DB_ENGINE = 'django.db.backends.sqlite3'
+```
+
 ### 生成数据表并迁移
 
 ```shell
@@ -24,13 +65,24 @@ python manage.py createsuperuser
 
 ### 启动程序
 
-##### a.本地环境直接启动
+##### a.Linux 环境命令一键启动api服务
 
 ```shell
 python manage.py start all
 ```
 
-##### b.容器化启动
+##### b.Windows或Linux 环境通过命令启动api服务
+
+⚠️ Windows上面无法正常运行celery flower，导致任务监控无法正常使用，请使用Linux环境开发部署
+
+```shell
+python manage.py runserver 0.0.0.0:8896
+python -m celery -A server flower --debug --url_prefix=api/flower --auto_refresh=False  --address=0.0.0.0 --port=5566
+python -m celery -A server beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler --max-interval 60
+python -m celery -A server worker -P prefork -l INFO --autoscale 10,3 -Q celery --heartbeat-interval 10 -n celery@%h --without-mingle
+```
+
+##### c.容器化启动api服务
 
 ```shell
 docker compose up -d
@@ -41,6 +93,10 @@ docker compose up -d
 ```shell
 python manage.py load_init_json
 ```
+
+## [点击查看字段权限文档](docs/field-permission.md)
+
+## [点击查看数据权限文档](docs/data-permission.md)
 
 ## 新应用开发流程
 
@@ -79,6 +135,8 @@ class ModelLabelFieldSerializer(BaseModelSerializer):
 
 # 附录
 
+### docker 环境安装， [官方文档](https://docs.docker.com/engine/install/)
+
 ### 容器部署
 
 ```shell
@@ -95,7 +153,7 @@ python manage.py dump_init_json
 
 ```shell
     location /ws/message {
-        proxy_pass http://127.0.0.1:28896;
+        proxy_pass http://127.0.0.1:8896;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -107,8 +165,8 @@ python manage.py dump_init_json
         proxy_set_header X-Forwarded-Proto https; # https代理需求添加该参数
     }
 
-    location ~ ^/(api|flower|media) {
-        proxy_pass http://127.0.0.1:28896;
+    location ~ ^/(api|flower|media|api-docs) {
+        proxy_pass http://127.0.0.1:8896;
         proxy_send_timeout 180;
         proxy_connect_timeout 180;
         proxy_read_timeout 180;

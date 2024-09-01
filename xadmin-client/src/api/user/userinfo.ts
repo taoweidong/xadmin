@@ -1,23 +1,31 @@
+import { ViewBaseApi } from "@/api/base";
+import type { BaseResult, ChoicesResult } from "@/api/types";
 import { http } from "@/utils/http";
-import type { Result, ResultDetail } from "@/api/types";
-import type { UserInfoResult } from "@/api/auth";
 
-export const getUserInfoApi = () => {
-  return http.request<UserInfoResult>("get", "/api/system/userinfo/self");
-};
+class UserInfoApi extends ViewBaseApi {
+  upload = (data?: object) => {
+    return http.upload<BaseResult, any>(`${this.baseApi}/upload`, {}, data);
+  };
+  choices = () => {
+    return this.request<ChoicesResult>(
+      "get",
+      {},
+      {},
+      `${this.baseApi}/choices`
+    );
+  };
+  reset = (data?: object) => {
+    return this.request<BaseResult>(
+      "post",
+      {},
+      data,
+      `${this.baseApi}/reset-password`
+    );
+  };
 
-export const updateUserInfoApi = (data?: object) => {
-  return http.request<ResultDetail>("put", `/api/system/userinfo/self`, {
-    data: data
-  });
-};
+  bind = (data?: object) => {
+    return this.request<BaseResult>("post", {}, data, `${this.baseApi}/bind`);
+  };
+}
 
-export const uploadUserInfoAvatarApi = (params?: object, data?: object) => {
-  return http.upload<Result>("/api/system/userinfo/self/upload", params, data);
-};
-
-export const updateUserInfoPasswordApi = (data?: object) => {
-  return http.request<Result>("post", "/api/system/userinfo/reset_password", {
-    data: data
-  });
-};
+export const userInfoApi = new UserInfoApi("/api/system/userinfo");

@@ -4,48 +4,62 @@
 # filename : configs
 # author : ly_13
 # date : 3/14/2024
-
+from drf_spectacular.plumbing import build_basic_type, build_object_type
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiRequest
+from rest_framework.viewsets import GenericViewSet
 
 from common.core.auth import auth_required
 from common.core.config import UserConfig, SysConfig
-from common.core.modelset import OwnerModelSet
+from common.core.filter import OwnerUserFilter
 from common.core.response import ApiResponse
+from common.swagger.utils import get_default_response_schema
 from system.models import UserPersonalConfig
-from system.utils.serializer import UserPersonalConfigSerializer
+from system.serializers.config import UserPersonalConfigSerializer
 
 
-class ConfigsView(OwnerModelSet):
-    queryset = UserPersonalConfig.objects.filter(is_active=True)
+def config_response_schema():
+    return get_default_response_schema({'config': build_object_type(), 'auth': build_basic_type(OpenApiTypes.STR)})
+
+
+class ConfigsView(GenericViewSet):
+    """配置信息"""
+    queryset = UserPersonalConfig.objects.none()
     serializer_class = UserPersonalConfigSerializer
     ordering_fields = ['created_time']
     lookup_field = 'key'
     permission_classes = []
-    authentication_classes = []
+    filter_backends = [OwnerUserFilter]
 
-    def list(self, request, *args, **kwargs):
-        return ApiResponse()
-
+    @extend_schema(responses=config_response_schema())
     def retrieve(self, request, *args, **kwargs):
         value_key = self.kwargs[self.lookup_field]
         if value_key:
             if request.user and request.user.is_authenticated:
-                site_config = UserConfig(request.user).get_value(value_key, ignore_access=False)
+                config = UserConfig(request.user).get_value(value_key, ignore_access=False)
             else:
-                site_config = SysConfig.get_value(value_key, ignore_access=False)
-            if site_config:
-                if not isinstance(site_config, dict):
-                    site_config = {'value': site_config, 'key': self.kwargs[self.lookup_field]}
-                return ApiResponse(**site_config, auth=f"{request.user}")
+                config = SysConfig.get_value(value_key, ignore_access=False)
+            if config is not None:
+                if not isinstance(config, dict):
+                    config = {'value': config, 'key': self.kwargs[self.lookup_field]}
+                return ApiResponse(config=config, auth=f"{request.user}")
         return ApiResponse(config={}, auth=f"{request.user}")
 
+    @extend_schema(responses=config_response_schema(), request=OpenApiRequest(build_object_type()))
     @auth_required
     def update(self, request, *args, **kwargs):
         value_key = self.kwargs[self.lookup_field]
         if value_key:
-            if self.queryset.filter(key=value_key, access=True).count():
-                UserConfig(request.user).set_value(value_key, request.data, is_active=True)
+            config = UserConfig(request.user).get_value(value_key, ignore_access=False)
+            if config is not None:
+                if isinstance(config, dict):
+                    config.update({key: request.data.get(key, value) for key, value in config.items()})
+                else:
+                    config = request.data
+                UserConfig(request.user).set_value(value_key, config, is_active=True, access=True)
         return self.retrieve(request, *args, **kwargs)
 
+    @extend_schema(responses=config_response_schema())
     @auth_required
     def destroy(self, request, *args, **kwargs):
         value_key = self.kwargs[self.lookup_field]

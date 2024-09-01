@@ -1,19 +1,15 @@
 import { defineStore } from "pinia";
-import { store } from "@/store";
-import type { userType } from "./types";
-import { routerArrays } from "@/layout/types";
-import { resetRouter, router } from "@/router";
-import { storageLocal } from "@pureadmin/utils";
+import { message } from "@/utils/message";
 import type { TokenResult } from "@/api/auth";
 import {
-  loginApi,
+  loginBasicApi,
   logoutApi,
   refreshTokenApi,
   registerApi,
   type UserInfo,
   type UserInfoResult
 } from "@/api/auth";
-import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
+import { userInfoApi } from "@/api/user/userinfo";
 import {
   getRefreshToken,
   removeToken,
@@ -21,17 +17,36 @@ import {
   setUserInfo,
   userKey
 } from "@/utils/auth";
-import { message } from "@/utils/message";
-import { getUserInfoApi } from "@/api/user/userinfo";
-import { getUserSiteConfigApi } from "@/api/config";
+
+import {
+  resetRouter,
+  router,
+  routerArrays,
+  storageLocal,
+  store,
+  type userType
+} from "../utils";
+
+import { useMultiTagsStoreHook } from "./multiTags";
+import { AesEncrypted } from "@/utils/aes";
+import { useWatermark } from "@pureadmin/utils";
+import { h, nextTick } from "vue";
+import { PureWebSocket } from "@/utils/websocket";
+import { ElNotification } from "element-plus";
+
+const { setWatermark, clear } = useWatermark();
 
 export const useUserStore = defineStore({
   id: "pure-user",
   state: (): userType => ({
-    // 用户名
-    username: storageLocal().getItem<UserInfo>(userKey)?.username ?? "",
     // 头像
     avatar: storageLocal().getItem<UserInfo>(userKey)?.avatar ?? "",
+    // 用户名
+    username: storageLocal().getItem<UserInfo>(userKey)?.username ?? "",
+    // 昵称
+    nickname: storageLocal().getItem<UserInfo>(userKey)?.nickname ?? "",
+    email: storageLocal().getItem<UserInfo>(userKey)?.email ?? "",
+    phone: storageLocal().getItem<UserInfo>(userKey)?.phone ?? "",
     // 页面级别权限
     roles: storageLocal().getItem<UserInfo>(userKey)?.roles ?? [],
     // 前端生成的验证码（按实际需求替换）
@@ -43,19 +58,30 @@ export const useUserStore = defineStore({
     // 登录页的免登录存储几天，默认7天
     loginDay: 7,
     // 未读消息数量
-    noticeCount: 0
+    noticeCount: 0,
+    // 消息通知websocket
+    websocket: null
   }),
   actions: {
-    /** 存储用户名 */
-    SET_USERNAME(username: string) {
-      this.username = username;
-    },
-    /** 存储用户名 */
+    /** 存储用户头像 */
     SET_AVATAR(avatar: string) {
       this.avatar = avatar;
     },
+    /** 存储用户名 */
+    SET_USERNAME(username: string) {
+      this.username = username;
+    } /** 存储用户昵称 */,
+    SET_NICKNAME(nickname: string) {
+      this.nickname = nickname;
+    },
+    SET_EMAIL(email: string) {
+      this.email = email;
+    },
+    SET_PHONE(phone: string) {
+      this.phone = phone;
+    },
     /** 存储角色 */
-    SET_ROLES(roles: Array<number>) {
+    SET_ROLES(roles: Array<string>) {
       this.roles = roles;
     },
     /** 存储前端生成的验证码 */
@@ -77,17 +103,22 @@ export const useUserStore = defineStore({
     SET_NOTICECOUNT(value: number) {
       this.noticeCount = Number(value);
     },
+    INCR_NOTICECOUNT(value: number = 1) {
+      this.noticeCount += Number(value);
+    },
     /** 登入 */
-    async loginByUsername(data) {
+    async loginByUsername(data, encrypted) {
       return new Promise<TokenResult>((resolve, reject) => {
-        loginApi(data)
+        if (encrypted) {
+          data["password"] = AesEncrypted(data["token"], data["password"]);
+          data["username"] = AesEncrypted(data["token"], data["username"]);
+        }
+        loginBasicApi(data)
           .then(res => {
             if (res.code === 1000) {
               setToken(res.data);
-              resolve(res);
-            } else {
-              reject(res);
             }
+            resolve(res);
           })
           .catch(error => {
             reject(error);
@@ -96,25 +127,25 @@ export const useUserStore = defineStore({
     },
     async getUserInfo() {
       return new Promise<UserInfoResult>((resolve, reject) => {
-        getUserInfoApi()
+        userInfoApi
+          .detail()
           .then(res => {
             if (res.code === 1000) {
+              clear();
               setUserInfo(res.data);
-              resolve(res);
-            } else {
-              reject(res);
-            }
-          })
-          .catch(error => {
-            reject(error);
-          });
-      });
-    },
-    async getUserConfig() {
-      return new Promise<UserInfoResult>((resolve, reject) => {
-        getUserSiteConfigApi()
-          .then(res => {
-            if (res.code === 1000) {
+              nextTick(() => {
+                setWatermark(
+                  `${this.username}${this.nickname ? "-" + this.nickname : ""}`,
+                  {
+                    globalAlpha: 0.1, // 值越低越透明
+                    gradient: [
+                      { value: 0, color: "magenta" },
+                      { value: 0.5, color: "blue" },
+                      { value: 1.0, color: "red" }
+                    ]
+                  }
+                );
+              });
               resolve(res);
             } else {
               reject(res);
@@ -153,6 +184,7 @@ export const useUserStore = defineStore({
           }
         })
         .finally(() => {
+          this.websocket?.close();
           removeToken();
           useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
           resetRouter();
@@ -174,6 +206,59 @@ export const useUserStore = defineStore({
           .catch(error => {
             reject(error);
           });
+      });
+    },
+    messageHandler() {
+      const onMessage = json_data => {
+        if (json_data.time && json_data.action === "push_message") {
+          const data = JSON.parse(json_data.data);
+          let message = data?.message;
+          switch (data.message_type) {
+            case "notify_message":
+              if (data?.notice_type?.value === 0) {
+                message = h("i", { style: "color: teal" }, data?.message);
+              }
+              ElNotification({
+                title: `${data?.notice_type?.label}-${data?.title}`,
+                message: message,
+                duration: 5000,
+                dangerouslyUseHTMLString: true,
+                type: data?.level?.value
+                  ?.replace("primary", "")
+                  ?.replace("danger", "warning"),
+                onClick: () => {
+                  router.push({
+                    name: "UserNotice",
+                    query: { pk: data?.pk }
+                  });
+                }
+              });
+              this.INCR_NOTICECOUNT();
+              break;
+            case "chat_message":
+              ElNotification({
+                title: `${data?.notice_type?.label}-${data?.title}`,
+                message: h("i", { style: "color: teal" }, message),
+                duration: 3000,
+                onClick: () => {
+                  router.push({
+                    name: "Chat"
+                  });
+                }
+              });
+              break;
+            case "error":
+              console.log(json_data);
+              break;
+          }
+        }
+      };
+      this.websocket = new PureWebSocket(this.username, "xadmin", {
+        openCallback: () => {
+          this.websocket.onMessage(data => {
+            onMessage(data);
+          });
+        }
       });
     }
   }

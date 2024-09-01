@@ -13,6 +13,14 @@ class RegisterThrottle(AnonRateThrottle):
     scope = "register"
 
 
+class ResetPasswordThrottle(AnonRateThrottle):
+    scope = "reset_password"
+
+
+class LoginThrottle(AnonRateThrottle):
+    scope = "login"
+
+
 class UploadThrottle(UserRateThrottle):
     """上传速率限制"""
     scope = "upload"

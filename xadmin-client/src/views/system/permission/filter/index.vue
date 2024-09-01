@@ -7,7 +7,7 @@ import AddFill from "@iconify-icons/ri/add-circle-line";
 import { FormProps } from "./utils/types";
 import EditPen from "@iconify-icons/ep/edit-pen";
 import Delete from "@iconify-icons/ep/delete";
-import { hasGlobalAuth } from "@/router/utils";
+import { hasAuth } from "@/router/utils";
 
 const props = withDefaults(defineProps<FormProps>(), {
   valuesData: () => [],
@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<FormProps>(), {
   ruleList: () => []
 });
 
-const emit = defineEmits<{ (e: "update:dataList", v: Array<object>) }>();
+const emit = defineEmits<{ (e: "change", v: Array<object>) }>();
 const tableRef = ref();
 const { t, columns, openDialog, handleDelete, ruleInfo } = useFieldRule(
   props.ruleList,
@@ -24,14 +24,14 @@ const { t, columns, openDialog, handleDelete, ruleInfo } = useFieldRule(
 );
 
 watch(ruleInfo.value, () => {
-  emit("update:dataList", Object.values(ruleInfo.value));
+  emit("change", Object.values(ruleInfo.value));
 });
 </script>
 
 <template>
-  <div class="main">
-    <PureTableBar :columns="columns" :title="t('permission.rules')">
-      <template v-if="hasGlobalAuth('list:systemModelField')" #buttons>
+  <div class="w-full">
+    <PureTableBar :columns="columns" :title="t('systemPermission.rules')">
+      <template v-if="hasAuth('list:systemModelField')" #buttons>
         <el-button
           :icon="useRenderIcon(AddFill)"
           type="primary"
@@ -43,7 +43,7 @@ watch(ruleInfo.value, () => {
             })
           "
         >
-          {{ t("buttons.hsadd") }}
+          {{ t("buttons.add") }}
         </el-button>
       </template>
       <template v-slot="{ size, dynamicColumns }">
@@ -55,7 +55,6 @@ watch(ruleInfo.value, () => {
             background: 'var(--el-table-row-hover-bg-color)',
             color: 'var(--el-text-color-primary)'
           }"
-          :paginationSmall="size === 'small'"
           :size="size"
           adaptive
           align-whole="center"
@@ -65,7 +64,7 @@ watch(ruleInfo.value, () => {
         >
           <template #operation="{ row }">
             <el-button
-              v-if="hasGlobalAuth('list:systemModelField')"
+              v-if="hasAuth('list:systemModelField')"
               :icon="useRenderIcon(EditPen)"
               :size="size"
               class="reset-margin"
@@ -74,7 +73,7 @@ watch(ruleInfo.value, () => {
               @click="openDialog(row)"
             />
             <el-popconfirm
-              :title="t('buttons.hsconfirmdelete')"
+              :title="t('buttons.confirmDelete')"
               @confirm="handleDelete(row)"
             >
               <template #reference>

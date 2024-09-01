@@ -4,15 +4,14 @@
 # filename : request
 # author : ly_13
 # date : 6/27/2023
-
+import base64
 import json
 
-import requests
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth.models import AnonymousUser
-from django.urls.resolvers import ResolverMatch
 from django.utils.module_loading import import_string
+from rest_framework.throttling import BaseThrottle
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from user_agents import parse
 
@@ -67,6 +66,9 @@ def get_request_data(request):
     request_data = getattr(request, 'request_data', None)
     if request_data:
         return request_data
+    if request.META.get('CONTENT_TYPE', '').startswith("multipart/"):
+        # 避免字段检查直接报错，axios中form-data数据字段和json字段不统一
+        return 'multipart/form-data'
     data: dict = {**request.GET.dict(), **request.POST.dict()}
     if not data:
         try:
@@ -109,29 +111,7 @@ def get_request_path(request, *args, **kwargs):
     return path
 
 
-def get_request_canonical_path(request, ):
-    """
-    获取请求路径
-    :param request:
-    :return:
-    """
-    request_path = getattr(request, 'request_canonical_path', None)
-    if request_path:
-        return request_path
-    path: str = request.path
-    resolver_match: ResolverMatch = request.resolver_match
-    for value in resolver_match.args:
-        path = path.replace(f"/{value}", "/{id}")
-    for key, value in resolver_match.kwargs.items():
-        if key == 'pk':
-            path = path.replace(f"/{value}", f"/{{id}}")
-            continue
-        path = path.replace(f"/{value}", f"/{{{key}}}")
-
-    return path
-
-
-def get_browser(request, ):
+def get_browser(request):
     """
     获取浏览器名
     :param request:
@@ -142,7 +122,7 @@ def get_browser(request, ):
     return user_agent.get_browser()
 
 
-def get_os(request, ):
+def get_os(request):
     """
     获取操作系统
     :param request:
@@ -168,42 +148,17 @@ def get_verbose_name(queryset=None, view=None, model=None):
         elif view and hasattr(view.get_serializer(), 'Meta') and hasattr(view.get_serializer().Meta, 'model'):
             model = view.get_serializer().Meta.model
         if model:
-            return getattr(model, '_meta').verbose_name
+            verbose_name = getattr(model, '_meta').verbose_name
         else:
-            model = queryset.model._meta.verbose_name
+            verbose_name = ""
     except Exception as e:
+        verbose_name = ""
         pass
-    return model if model else ""
+    return model, verbose_name
 
 
-def get_ip_analysis(ip):
-    """
-    获取ip详细概略
-    :param ip: ip地址
-    :return:
-    """
-    data = {
-        "continent": "",
-        "country": "",
-        "province": "",
-        "city": "",
-        "district": "",
-        "isp": "",
-        "area_code": "",
-        "country_english": "",
-        "country_code": "",
-        "longitude": "",
-        "latitude": ""
-    }
-    if ip != 'unknown' and ip:
-        if getattr(settings, 'ENABLE_LOGIN_ANALYSIS_LOG', True):
-            try:
-                res = requests.get(url='https://ip.django-vue-admin.com/ip/analysis', params={"ip": ip}, timeout=5)
-                if res.status_code == 200:
-                    res_data = res.json()
-                    if res_data.get('code') == 0:
-                        data = res_data.get('data')
-                return data
-            except Exception as e:
-                print(e)
-    return data
+def get_request_ident(request):
+    http_user_agent = request.META.get('HTTP_USER_AGENT')
+    http_accept = request.META.get('HTTP_ACCEPT')
+    remote_addr = BaseThrottle().get_ident(request)
+    return base64.b64encode(f"{http_user_agent}{http_accept}{remote_addr}".encode("utf-8")).decode('utf-8')

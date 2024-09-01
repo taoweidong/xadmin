@@ -6,34 +6,38 @@
 # date : 6/16/2023
 import logging
 
+from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
+from drf_spectacular.plumbing import build_object_type, build_array_type, build_basic_type
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiRequest
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
 
-from common.base.utils import get_choices_dict
-from common.core.filter import get_filter_queryset
-from common.core.modelset import BaseModelSet, UploadFileAction
+from common.core.filter import BaseFilterSet
+from common.core.modelset import BaseModelSet, UploadFileAction, ImportExportDataAction
 from common.core.response import ApiResponse
-from system.models import UserInfo, DeptInfo
+from common.swagger.utils import get_default_response_schema
+from settings.utils.security import LoginBlockUtil
+from system.models import UserInfo
+from system.serializers.user import UserSerializer, ResetPasswordSerializer
 from system.utils import notify
 from system.utils.modelset import ChangeRolePermissionAction
-from system.utils.serializer import UserSerializer
 
 logger = logging.getLogger(__name__)
 
 
-class UserFilter(filters.FilterSet):
+class UserFilter(BaseFilterSet):
     username = filters.CharFilter(field_name='username', lookup_expr='icontains')
     nickname = filters.CharFilter(field_name='nickname', lookup_expr='icontains')
-    mobile = filters.CharFilter(field_name='mobile', lookup_expr='icontains')
-    pk = filters.NumberFilter(field_name='id')
+    phone = filters.CharFilter(field_name='phone', lookup_expr='icontains')
 
     class Meta:
         model = UserInfo
-        fields = ['email', 'is_active', 'gender', 'pk', 'mode_type', 'dept']
+        fields = ['username', 'nickname', 'phone', 'email', 'is_active', 'gender', 'pk', 'mode_type', 'dept']
 
 
-class UserView(BaseModelSet, UploadFileAction, ChangeRolePermissionAction):
+class UserView(BaseModelSet, UploadFileAction, ChangeRolePermissionAction, ImportExportDataAction):
+    """用户管理"""
     FILE_UPLOAD_FIELD = 'avatar'
     queryset = UserInfo.objects.all()
     serializer_class = UserSerializer
@@ -41,52 +45,40 @@ class UserView(BaseModelSet, UploadFileAction, ChangeRolePermissionAction):
     ordering_fields = ['date_joined', 'last_login', 'created_time']
     filterset_class = UserFilter
 
-    def list(self, request, *args, **kwargs):
-        data = super().list(request, *args, **kwargs).data
-        return ApiResponse(**data, choices_dict=get_choices_dict(UserInfo.GenderChoices.choices),
-                           mode_choices=get_choices_dict(DeptInfo.ModeChoices.choices))
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        password = request.data.get('password')
-        if password:
-            valid_data = serializer.data
-            # roles = valid_data.pop('roles')
-            valid_data.pop('roles_info', None)
-            valid_data.pop('rules_info', None)
-            valid_data.pop('dept_info', None)
-            dept = valid_data.pop('dept', None)
-            if dept:
-                valid_data['dept'] = get_filter_queryset(DeptInfo.objects.filter(pk=dept), request.user).first()
-            else:
-                raise ValidationError('部门必须选择')
-                # valid_data['dept'] = request.user.dept
-            user = UserInfo.objects.create_user(**valid_data, password=password, creator=request.user,
-                                                dept_belong=request.user.dept)
-            if user:
-                return ApiResponse(detail=f"用户{user.username}添加成功", data=self.get_serializer(user).data)
-        return ApiResponse(code=1003, detail="数据异常，用户创建失败")
-
     def perform_destroy(self, instance):
         if instance.is_superuser:
-            raise Exception("超级管理员禁止删除")
-        instance.delete()
+            raise Exception(_("The super administrator disallows deletion"))
+        return instance.delete()
 
-    @action(methods=['delete'], detail=False, url_path='many-delete')
-    def many_delete(self, request, *args, **kwargs):
+    @extend_schema(
+        description='批量删除',
+        request=OpenApiRequest(
+            build_object_type(
+                properties={'pks': build_array_type(build_basic_type(OpenApiTypes.STR))},
+                required=['pks'],
+                description="主键列表"
+            )
+        ),
+        responses=get_default_response_schema()
+    )
+    @action(methods=['post'], detail=False, url_path='batch-delete')
+    def batch_delete(self, request, *args, **kwargs):
         self.queryset = self.queryset.filter(is_superuser=False)
-        return super().many_delete(request, *args, **kwargs)
+        return super().batch_delete(request, *args, **kwargs)
 
-    @action(methods=['post'], detail=True)
+    @extend_schema(description='管理员重置用户密码', responses=get_default_response_schema())
+    @action(methods=['post'], detail=True, url_path='reset-password', serializer_class=ResetPasswordSerializer)
     def reset_password(self, request, *args, **kwargs):
         instance = self.get_object()
-        password = request.data.get('password')
-        if instance and password:
-            instance.set_password(password)
-            instance.modifier = request.user
-            instance.save(update_fields=['password', 'modifier'])
-            notify.notify_info(users=instance, title="密码重置成功",
-                               message="密码被管理员重置成功")
-            return ApiResponse()
-        return ApiResponse(code=1001, detail='修改失败')
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        notify.notify_error(users=instance, title="密码重置成功",
+                            message="密码被管理员重置成功")
+        return ApiResponse()
+
+    @action(methods=["post"], detail=True)
+    def unblock(self, request, *args, **kwargs):
+        instance = self.get_object()
+        LoginBlockUtil.unblock_user(instance.username)
+        return ApiResponse()

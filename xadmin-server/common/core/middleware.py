@@ -10,6 +10,7 @@ import json
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.utils.deprecation import MiddlewareMixin
+from rest_framework.utils import encoders
 
 from common.utils.request import get_request_user, get_request_ip, get_request_data, get_request_path, get_os, \
     get_browser, get_verbose_name
@@ -22,7 +23,8 @@ class ApiLoggingMiddleware(MiddlewareMixin):
         super().__init__(get_response)
         self.enable = getattr(settings, 'API_LOG_ENABLE', None) or False
         self.methods = getattr(settings, 'API_LOG_METHODS', None) or set()
-        self.operation_log_id = None
+        self.ignores = getattr(settings, 'API_LOG_IGNORE', None) or {}
+        self.operation_log_id = '__operation_log_id'
 
     @classmethod
     def __handle_request(cls, request):
@@ -31,6 +33,11 @@ class ApiLoggingMiddleware(MiddlewareMixin):
         request.request_path = get_request_path(request)
 
     def __handle_response(self, request, response):
+        # 判断有无log_id属性，使用All记录时，会出现此情况
+        operation_log_id = getattr(request, self.operation_log_id, None)
+        if operation_log_id is None:
+            return
+
         body = getattr(request, 'request_data', {})
         # 请求含有password则用*替换掉(暂时先用于所有接口的password请求参数)
         if isinstance(body, dict) and body.get('password', ''):
@@ -39,7 +46,7 @@ class ApiLoggingMiddleware(MiddlewareMixin):
             response.data = {}
         try:
             if not response.data and response.content:
-                content = json.loads(response.content.decode())
+                content = json.loads(response.content.decode().replace('\\', ''))
                 response.data = content if isinstance(content, dict) else {}
         except Exception:
             return
@@ -50,27 +57,31 @@ class ApiLoggingMiddleware(MiddlewareMixin):
             'ipaddress': getattr(request, 'request_ip'),
             'method': request.method,
             'path': request.request_path,
-            'body': body,
+            'body': json.dumps(body) if isinstance(body, dict) else body,
             'response_code': response.status_code,
             'system': get_os(request),
             'browser': get_browser(request),
             'status_code': response.data.get('code'),
-            'response_result': {"code": response.data.get('code'), "data": response.data.get('data'),
-                                "detail": response.data.get('detail')},
+            'response_result': json.dumps({"code": response.data.get('code'), "data": response.data.get('data'),
+                                           "detail": response.data.get('detail')}, cls=encoders.JSONEncoder),
         }
-        operation_log, creat = OperationLog.objects.update_or_create(defaults=info, id=self.operation_log_id)
-        module_name = settings.API_MODEL_MAP.get(request.request_path, None)
-        if module_name:
-            operation_log.module = module_name
-            operation_log.save(update_fields=['module'])
+        try:
+            OperationLog.objects.update_or_create(defaults=info, id=operation_log_id)
+        except Exception:
+            pass
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         if hasattr(view_func, 'cls') and hasattr(view_func.cls, 'queryset'):
             if self.enable:
                 if self.methods == 'ALL' or request.method in self.methods:
-                    log = OperationLog(module=get_verbose_name(view_func.cls.queryset))
+                    model, v = get_verbose_name(view_func.cls.queryset)
+                    if model and request.method in self.ignores.get(model._meta.label, []):
+                        return
+                    if not v:
+                        v = settings.API_MODEL_MAP.get(request.request_path, v)
+                    log = OperationLog(module=v)
                     log.save()
-                    self.operation_log_id = log.id
+                    setattr(request, self.operation_log_id, log.id)
 
         return
 

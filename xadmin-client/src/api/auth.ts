@@ -26,9 +26,9 @@ export interface UserInfo {
   date_joined: string;
   pk: number;
   unread_message_count: number;
-  mobile: string;
+  phone: string;
   is_active: boolean;
-  roles: number[];
+  roles: string[];
 }
 
 export type UserInfoResult = {
@@ -36,6 +36,7 @@ export type UserInfoResult = {
   detail: string;
   data: UserInfo;
   choices_dict?: any[];
+  password_rule?: any[];
 };
 
 export type TempTokenResult = {
@@ -53,9 +54,37 @@ export type CaptchaResult = {
   length: number;
 };
 
+export type AuthInfoResult = {
+  code: number;
+  detail: string;
+  data: {
+    access: boolean;
+    captcha?: boolean;
+    token?: boolean;
+    encrypted?: boolean;
+    lifetime?: number;
+    reset?: boolean;
+    password?: Array<any>;
+    email?: boolean;
+    sms?: boolean;
+    basic?: boolean;
+    rate?: number;
+  };
+};
+
 /** 登录 */
-export const loginApi = (data?: object) => {
-  return http.request<TokenResult>("post", "/api/system/login", { data });
+export const loginBasicApi = (data?: object) => {
+  return http.request<TokenResult>("post", "/api/system/login/basic", { data });
+};
+
+export const loginVerifyCodeApi = (data?: object) => {
+  return http.request<TokenResult>("post", "/api/system/login/code", { data });
+};
+
+export const loginAuthApi = (data?: object) => {
+  return http.request<AuthInfoResult>("get", "/api/system/login/basic", {
+    data
+  });
 };
 
 export const getTempTokenApi = () => {
@@ -73,9 +102,34 @@ export const refreshTokenApi = (data?: object) => {
 export const registerApi = (data?: object) => {
   return http.request<TokenResult>("post", "/api/system/register", { data });
 };
+export const registerAuthApi = (data?: object) => {
+  return http.request<AuthInfoResult>("get", "/api/system/register", { data });
+};
 
 export const logoutApi = (data?: object) => {
   return http.request<TokenResult>("post", "/api/system/logout", {
     data: data
+  });
+};
+
+export const rulesPasswordApi = () => {
+  return http.request<TokenResult>("get", "/api/system/rules/password");
+};
+
+export const resetPasswordApi = (data?: object) => {
+  return http.request<TokenResult>("post", "/api/system/auth/reset", {
+    data: data
+  });
+};
+
+export const verifyCodeConfigApi = (params?: object) => {
+  return http.request<AuthInfoResult>("get", "/api/system/auth/verify", {
+    params
+  });
+};
+export const verifyCodeSendApi = (params?: object, data?: object) => {
+  return http.request<TokenResult>("post", "/api/system/auth/verify", {
+    params,
+    data
   });
 };

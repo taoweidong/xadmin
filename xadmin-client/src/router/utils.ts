@@ -12,22 +12,21 @@ import {
   cloneDeep,
   intersection,
   isAllEmpty,
-  isIncludeAllChildren,
-  isString,
   storageLocal
 } from "@pureadmin/utils";
 import { getConfig } from "@/config";
-import type { menuType } from "@/layout/types";
 import { buildHierarchyTree } from "@/utils/tree";
 import { userKey } from "@/utils/auth";
+import { type menuType, routerArrays } from "@/layout/types";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 // 动态路由
 import { getAsyncRoutes } from "@/api/routes";
-import type { UserInfo } from "@/api/auth";
 import { useUserStoreHook } from "@/store/modules/user";
+import type { UserInfo } from "@/api/auth";
+import { useSiteConfigStoreHook } from "@/store/modules/siteConfig";
 
-const IFrame = () => import("@/layout/frameView.vue");
+const IFrame = () => import("@/layout/frame.vue");
 // https://cn.vitejs.dev/guide/features.html#glob-import
 const modulesRoutes = import.meta.glob("/src/views/**/*.{vue,tsx}");
 
@@ -35,7 +34,9 @@ function handRank(routeInfo: any) {
   const { name, path, parentId, meta } = routeInfo;
   return isAllEmpty(parentId)
     ? isAllEmpty(meta?.rank) ||
-        (meta?.rank === 0 && name !== "Home" && path !== "/")
+      (meta?.rank === 0 && name !== "Home" && path !== "/")
+      ? true
+      : false
     : false;
 }
 
@@ -73,13 +74,15 @@ function filterChildrenTree(data: RouteComponent[]) {
 }
 
 /** 判断两个数组彼此是否存在相同值 */
-function isOneOfArray(a: Array<string>, b: number[]) {
+function isOneOfArray(a: Array<string>, b: Array<string>) {
   return Array.isArray(a) && Array.isArray(b)
     ? intersection(a, b).length > 0
+      ? true
+      : false
     : true;
 }
 
-/** 从storageLocal里取出当前登陆用户的角色roles，过滤无权限的菜单 */
+/** 从localStorage里取出当前登录用户的角色roles，过滤无权限的菜单 */
 function filterNoPermissionTree(data: RouteComponent[]) {
   const currentRoles = storageLocal().getItem<UserInfo>(userKey)?.roles ?? [];
   const newTree = cloneDeep(data).filter((v: any) =>
@@ -147,7 +150,8 @@ function addPathMatch() {
 }
 
 /** 处理动态路由（后端返回的路由） */
-function handleAsyncRoutes(routeList) {
+function handleAsyncRoutes(routeList, authList) {
+  usePermissionStoreHook().handleWholeAuths(authList);
   if (routeList.length === 0) {
     usePermissionStoreHook().handleWholeMenus(routeList);
   } else {
@@ -175,35 +179,51 @@ function handleAsyncRoutes(routeList) {
     );
     usePermissionStoreHook().handleWholeMenus(routeList);
   }
+  if (!useMultiTagsStoreHook().getMultiTagsCache) {
+    useMultiTagsStoreHook().handleTags("equal", [
+      ...routerArrays,
+      ...usePermissionStoreHook().flatteningRoutes.filter(
+        v => v?.meta?.fixedTag
+      )
+    ]);
+  }
   addPathMatch();
-  useUserStoreHook().getUserInfo();
-  // useUserStoreHook().getUserConfig();
 }
 
 /** 初始化路由（`new Promise` 写法防止在异步请求中造成无限循环）*/
 function initRouter() {
+  useSiteConfigStoreHook().getSiteConfig();
+  useUserStoreHook()
+    .getUserInfo()
+    .then(() => {
+      useUserStoreHook().messageHandler();
+    });
+
   if (getConfig()?.CachingAsyncRoutes) {
-    // 开启动态路由缓存本地storageLocal
+    // 开启动态路由缓存本地localStorage
     const key = "async-routes";
+    const authKey = "async-auths";
     const asyncRouteList = storageLocal().getItem(key) as any;
+    const asyncAuthList = storageLocal().getItem(authKey) as any;
     if (asyncRouteList && asyncRouteList?.length > 0) {
       return new Promise(resolve => {
-        handleAsyncRoutes(asyncRouteList);
+        handleAsyncRoutes(asyncRouteList, asyncAuthList);
         resolve(router);
       });
     } else {
       return new Promise(resolve => {
-        getAsyncRoutes().then(({ data }) => {
-          handleAsyncRoutes(cloneDeep(data));
+        getAsyncRoutes().then(({ data, auths }) => {
+          handleAsyncRoutes(cloneDeep(data), auths);
           storageLocal().setItem(key, data);
+          storageLocal().setItem(authKey, auths);
           resolve(router);
         });
       });
     }
   } else {
     return new Promise(resolve => {
-      getAsyncRoutes().then(({ data }) => {
-        handleAsyncRoutes(cloneDeep(data));
+      getAsyncRoutes().then(({ data, auths }) => {
+        handleAsyncRoutes(cloneDeep(data), auths);
         resolve(router);
       });
     });
@@ -347,48 +367,47 @@ function getAuths(): Array<string> {
 }
 
 /** 是否有按钮级别的权限 */
-function hasAuth(value: string | Array<string>): boolean {
-  if (!value) return false;
-  /** 从当前路由的`meta`字段里获取按钮级别的所有自定义`code`值 */
-  const metaAuths = getAuths();
-  if (!metaAuths) return false;
-  return isString(value)
-    ? metaAuths.includes(value)
-    : isIncludeAllChildren(value, metaAuths);
-}
-
-function getGlobalAuths(arr: any[]) {
-  let res = [];
-
-  function deep(arr: any[]) {
-    arr.forEach(item => {
-      let auths = item?.meta?.auths;
-      if (auths?.length > 0) {
-        res = res.concat(auths);
-      }
-      item.children && deep(item.children);
-    });
-  }
-
-  deep(arr);
-  return res;
-}
+// function hasAuth(value: string | Array<string>): boolean {
+//   if (!value) return false;
+//   /** 从当前路由的`meta`字段里获取按钮级别的所有自定义`code`值 */
+//   const metaAuths = getAuths();
+//   if (!metaAuths) return false;
+//   const isAuths = isString(value)
+//     ? metaAuths.includes(value)
+//     : isIncludeAllChildren(value, metaAuths);
+//   return isAuths ? true : false;
+// }
 
 /** 是否有按钮级别的权限 */
-function hasGlobalAuth(value: string | Array<string>): boolean {
+function hasAuth(value: string): boolean {
   if (!value) return false;
   /** 从当前路由的`meta`字段里获取按钮级别的所有自定义`code`值 */
-  const metaAuths = getGlobalAuths(usePermissionStoreHook().routes);
-  if (!metaAuths) return false;
-  return isString(value)
-    ? metaAuths.includes(value)
-    : isIncludeAllChildren(value, metaAuths);
+  const permissionAuths = usePermissionStoreHook().permissionAuths;
+  if (!permissionAuths) return false;
+  return permissionAuths[value];
+}
+
+/** 获取所有菜单中的第一个菜单（顶级菜单）*/
+function handleTopMenu(route) {
+  if (route?.children && route.children.length > 1) {
+    if (route.redirect) {
+      return route.children.filter(cur => cur.path === route.redirect)[0];
+    } else {
+      return route.children[0];
+    }
+  } else {
+    return route;
+  }
 }
 
 /** 获取所有菜单中的第一个菜单（顶级菜单）*/
 function getTopMenu(tag = false): menuType {
-  const topMenu = usePermissionStoreHook().wholeMenus[0]?.children[0];
-  tag && useMultiTagsStoreHook().handleTags("push", topMenu);
+  const topMenu = handleTopMenu(
+    usePermissionStoreHook().wholeMenus[0]?.children[0]
+  );
+  if (tag) {
+    useMultiTagsStoreHook().handleTags("push", topMenu);
+  }
   return topMenu;
 }
 
@@ -401,7 +420,6 @@ export {
   getTopMenu,
   addPathMatch,
   isOneOfArray,
-  hasGlobalAuth,
   getHistoryMode,
   addAsyncRoutes,
   getParentPaths,

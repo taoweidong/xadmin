@@ -4,6 +4,7 @@
 # filename : config
 # author : ly_13
 # date : 12/15/2023
+# 修改下面配置之后，记得清理一下redis缓存： python manage.py expire_caches '*'
 
 
 import json
@@ -40,12 +41,15 @@ def get_render_context(tmp: str, context: dict) -> str:
 
 class ConfigCacheBase(object):
     def __init__(self, px='system', model=SystemConfig, cache=UserSystemConfigCache, serializer=SystemConfigSerializer,
-                 timeout=60 * 60 * 24 * 30):
+                 timeout=60 * 60 * 24 * 30, filter_kwargs=None):
+        if filter_kwargs is None:
+            filter_kwargs = {}
         self.px = px
         self.model = model
         self.cache = cache
         self.timeout = timeout
         self.serializer = serializer
+        self.filter_kwargs = filter_kwargs
 
     def invalid_config_cache(self, key='*'):
         UserSystemConfigCache(f'{self.px}_{key}').del_many()
@@ -84,7 +88,7 @@ class ConfigCacheBase(object):
         return value
 
     def get_value_from_db(self, key):
-        data = self.serializer(self.model.objects.filter(is_active=True, key=key).first()).data
+        data = self.serializer(self.model.objects.filter(is_active=True, key=key, **self.filter_kwargs).first()).data
         if re.findall('{{.*%s.*}}' % data['key'], data['value']):
             logger.warning(f"get same render key:{key}. so get default value")
             data['key'] = ''
@@ -113,6 +117,7 @@ class ConfigCacheBase(object):
         if d_key != key and data is not None:
             db_data['value'] = json.dumps(data)
             db_data['key'] = key
+            db_data['access'] = True
         db_data['value'] = self.get_render_value(db_data['value'])
         cache.set_storage_cache(db_data, timeout=self.timeout)
         if ignore_access or db_data.get('access'):
@@ -172,8 +177,62 @@ class BaseConfCache(ConfigCacheBase):
     def PERMISSION_DATA(self):
         return self.get_value('PERMISSION_DATA', True)
 
+    @property
+    def EXPORT_MAX_LIMIT(self):
+        return self.get_value('EXPORT_MAX_LIMIT', 20000)
 
-class ConfigCache(BaseConfCache):
+
+class AuthConfCache(ConfigCacheBase):
+    def __init__(self, *args, **kwargs):
+        super(AuthConfCache, self).__init__(*args, **kwargs)
+
+    @property
+    def LOGIN(self):
+        return self.get_value('LOGIN', True)
+
+    @property
+    def NEED_LOGIN_TOKEN(self):
+        return self.get_value('NEED_LOGIN_TOKEN', True)
+
+    @property
+    def NEED_LOGIN_CAPTCHA(self):
+        return self.get_value('NEED_LOGIN_CAPTCHA', True)
+
+    @property
+    def NEED_LOGIN_ENCRYPTED(self):
+        return self.get_value('NEED_LOGIN_ENCRYPTED', True)
+
+    @property
+    def REGISTER(self):
+        return self.get_value('REGISTER', True)
+
+    @property
+    def NEED_REGISTER_TOKEN(self):
+        return self.get_value('NEED_REGISTER_TOKEN', True)
+
+    @property
+    def NEED_REGISTER_CAPTCHA(self):
+        return self.get_value('NEED_REGISTER_CAPTCHA', True)
+
+    @property
+    def NEED_REGISTER_ENCRYPTED(self):
+        return self.get_value('NEED_REGISTER_ENCRYPTED', True)
+
+
+class MessagePushConfCache(ConfigCacheBase):
+    def __init__(self, *args, **kwargs):
+        super(MessagePushConfCache, self).__init__(*args, **kwargs)
+
+    @property
+    def PUSH_MESSAGE_NOTICE(self):
+        return self.get_value('PUSH_MESSAGE_NOTICE', True)
+
+    @property
+    def PUSH_CHAT_MESSAGE(self):
+        return self.get_value('PUSH_CHAT_MESSAGE', True)
+
+
+class ConfigCache(BaseConfCache, MessagePushConfCache, AuthConfCache):
     def __init__(self, *args, **kwargs):
         super(ConfigCache, self).__init__(*args, **kwargs)
 
@@ -190,11 +249,14 @@ class UserConfigSerializer(serializers.ModelSerializer):
 class UserPersonalConfigCache(ConfigCache):
     def __init__(self, user_obj):
         self.user_obj = user_obj
-        if isinstance(user_obj, str):
+        self.filter_kwargs = {'owner': self.user_obj}
+        if isinstance(user_obj, (str, int)):
             key = user_obj
+            self.filter_kwargs = {'owner_id': self.user_obj}
         else:
             key = user_obj.pk
-        super().__init__(f'user_{key}', UserPersonalConfig, UserSystemConfigCache, UserConfigSerializer)
+        super().__init__(f'user_{key}', UserPersonalConfig, UserSystemConfigCache, UserConfigSerializer,
+                         filter_kwargs=self.filter_kwargs)
 
     def get_default_data(self, key, default_data):
         data = SysConfig.get_data(key, default_data)
@@ -203,14 +265,14 @@ class UserPersonalConfigCache(ConfigCache):
         return {}
 
     def delete_db(self, key, **kwargs):
-        return super(UserPersonalConfigCache, self).delete_db(key, owner=self.user_obj)
+        return super(UserPersonalConfigCache, self).delete_db(key, **self.filter_kwargs)
 
     def save_db(self, key, value, is_active=None, description=None, **kwargs):
-        return super(UserPersonalConfigCache, self).save_db(key, value, is_active, description, owner=self.user_obj,
+        return super(UserPersonalConfigCache, self).save_db(key, value, is_active, description, **self.filter_kwargs,
                                                             **kwargs)
 
     def set_default_value(self, key, **kwargs):
-        return super(UserPersonalConfigCache, self).set_default_value(key, owner=self.user_obj)
+        return super(UserPersonalConfigCache, self).set_default_value(key, **self.filter_kwargs)
 
 
 UserConfig = UserPersonalConfigCache

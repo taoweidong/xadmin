@@ -2,6 +2,8 @@ import Cookies from "js-cookie";
 import { storageLocal } from "@pureadmin/utils";
 import { useUserStoreHook } from "@/store/modules/user";
 import type { TokenInfo, UserInfo } from "@/api/auth";
+import { responsiveStorageNameSpace } from "@/config";
+import Storage from "responsive-storage";
 
 export const userKey = "user-info";
 const TokenKey = "X-Token";
@@ -41,7 +43,7 @@ export function setRefreshToken(token: string, expires = 864e3) {
 /**
  * @description 设置`token`以及一些必要信息并采用无感刷新`token`方案
  * 无感刷新：后端返回`accessToken`（访问接口使用的`token`）、`refreshToken`（用于调用刷新`accessToken`的接口时所需的`token`，`refreshToken`的过期时间（比如30天）应大于`accessToken`的过期时间（比如2小时））、`expires`（`accessToken`的过期时间）
- * 将`accessToken`、`expires`这两条信息放在key值为authorized-token的cookie里（过期自动销毁）
+ * * 将`accessToken`、`expires`、`refreshToken`这三条信息放在key值为authorized-token的cookie里（过期自动销毁）
  * 将`username`、`roles`、`refreshToken`、`expires`这四条信息放在key值为`user-info`的storageLocal里
  */
 export function setToken(data: TokenInfo) {
@@ -64,9 +66,12 @@ export function setToken(data: TokenInfo) {
 }
 
 export function setUserInfo(data: UserInfo) {
-  useUserStoreHook().SET_USERNAME(data.username);
   useUserStoreHook().SET_AVATAR(data.avatar);
-  useUserStoreHook().SET_ROLES(data.roles_info);
+  useUserStoreHook().SET_USERNAME(data.username);
+  useUserStoreHook().SET_NICKNAME(data.nickname);
+  useUserStoreHook().SET_EMAIL(data.email);
+  useUserStoreHook().SET_PHONE(data.phone);
+  useUserStoreHook().SET_ROLES(data?.roles);
   storageLocal().setItem(userKey, data);
 }
 
@@ -78,7 +83,17 @@ export function removeToken() {
   storageLocal().removeItem(userKey);
 }
 
+export function remoteAccessToken() {
+  Cookies.remove(TokenKey);
+}
+
 /** 格式化token（jwt格式） */
 export const formatToken = (token: string): string => {
   return "Bearer " + token;
+};
+
+export const setApiLanguage = config => {
+  const nameSpace = responsiveStorageNameSpace();
+  config.headers["Accept-Language"] =
+    Storage.getData("locale", nameSpace)?.locale ?? "zh";
 };

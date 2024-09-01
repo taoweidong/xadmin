@@ -1,13 +1,13 @@
-FROM node:20-alpine as build-stage
+FROM node:22-alpine as build-stage
 
 WORKDIR /app
 RUN corepack enable
-RUN corepack prepare pnpm@8.6.10 --activate
+RUN corepack prepare pnpm@9.7.0 --activate
 
 RUN npm config set registry https://registry.npmmirror.com
 
-COPY .npmrc package.json ./
-RUN pnpm install
+COPY .npmrc package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm build

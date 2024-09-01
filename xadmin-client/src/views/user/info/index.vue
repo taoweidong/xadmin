@@ -1,19 +1,19 @@
 <script lang="ts" setup>
-import { ref } from "vue";
-import { useUserInfo } from "./utils/hook";
-import editUserInfo from "./edit.vue";
-import editUserPassword from "./password.vue";
-import editUserAvatar from "./avatar.vue";
-import { hasAuth } from "@/router/utils";
 import dayjs from "dayjs";
+import { ref } from "vue";
+import editUserInfo from "./edit.vue";
+import editUserAvatar from "./avatar.vue";
+import { useUserInfo } from "./utils/hook";
+import editUserPassword from "./password.vue";
 
 defineOptions({
   name: "UserInfo"
 });
 
 const {
+  auth,
+  genderChoices,
   currentUserInfo,
-  choicesDict,
   handleUpdate,
   handleUpload,
   handleResetPassword,
@@ -42,53 +42,53 @@ const activeTab = ref("userinfo");
           </div>
 
           <el-descriptions :column="1" size="large">
-            <el-descriptions-item :label="t('user.username')"
+            <el-descriptions-item :label="t('userinfo.username')"
               >{{ currentUserInfo.username }}
             </el-descriptions-item>
-            <el-descriptions-item :label="t('user.nickname')"
+            <el-descriptions-item :label="t('userinfo.nickname')"
               >{{ currentUserInfo.nickname }}
             </el-descriptions-item>
-            <el-descriptions-item :label="t('user.mobile')"
-              >{{ currentUserInfo.mobile }}
+            <el-descriptions-item :label="t('userinfo.phone')"
+              >{{ currentUserInfo.phone }}
             </el-descriptions-item>
-            <el-descriptions-item :label="t('user.email')"
+            <el-descriptions-item :label="t('userinfo.email')"
               >{{ currentUserInfo.email }}
             </el-descriptions-item>
-            <el-descriptions-item :label="t('user.gender')">
-              <el-tag type="success">
-                {{ currentUserInfo.gender_display }}
+            <el-descriptions-item :label="t('userinfo.gender')">
+              <el-tag
+                :type="
+                  (currentUserInfo.gender as any)?.value === 2
+                    ? 'danger'
+                    : 'primary'
+                "
+              >
+                {{ (currentUserInfo.gender as any)?.label }}
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item
-              v-if="
-                currentUserInfo?.dept_info && currentUserInfo?.dept_info?.name
-              "
-              :label="t('user.dept')"
+              v-if="currentUserInfo?.dept && currentUserInfo?.dept?.name"
+              :label="t('userinfo.dept')"
             >
               <el-tag type="success">
-                {{ currentUserInfo.dept_info.name }}
+                {{ currentUserInfo.dept.name }}
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item
-              v-if="
-                currentUserInfo.roles_info && currentUserInfo.roles_info.length
-              "
-              :label="t('user.roles')"
+              v-if="currentUserInfo.roles && currentUserInfo.roles.length"
+              :label="t('userinfo.roles')"
             >
               <el-space>
-                <el-tag
-                  v-for="item in currentUserInfo.roles_info"
-                  :key="item.pk"
+                <el-tag v-for="item in currentUserInfo.roles" :key="item.pk"
                   >{{ item.name }}
                 </el-tag>
               </el-space>
             </el-descriptions-item>
-            <el-descriptions-item :label="t('sorts.registrationDate')">
+            <el-descriptions-item :label="t('userinfo.date_joined')">
               {{
                 dayjs(currentUserInfo.date_joined).format("YYYY-MM-DD HH:mm:ss")
               }}
             </el-descriptions-item>
-            <el-descriptions-item :label="t('sorts.loginDate')">
+            <el-descriptions-item :label="t('userinfo.last_login')">
               {{
                 dayjs(currentUserInfo.last_login).format("YYYY-MM-DD HH:mm:ss")
               }}
@@ -107,20 +107,20 @@ const activeTab = ref("userinfo");
         <el-tabs v-model="activeTab">
           <el-tab-pane :label="t('userinfo.basicInfo')" name="userinfo">
             <edit-user-info
-              :choices-dict="choicesDict"
               :form-inline="currentUserInfo"
+              :gender-choices="genderChoices"
               @handle-update="handleUpdate"
             />
           </el-tab-pane>
           <el-tab-pane
-            v-if="hasAuth('update:UserInfoPassword')"
+            v-if="auth.reset"
             :label="t('userinfo.changePassword')"
             name="resetPwd"
           >
             <edit-user-password @handle-update="handleResetPassword" />
           </el-tab-pane>
           <el-tab-pane
-            v-if="hasAuth('upload:UserInfoAvatar')"
+            v-if="auth.upload"
             :label="t('userinfo.updateAvatar')"
             name="avatar"
           >

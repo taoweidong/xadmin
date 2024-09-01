@@ -1,8 +1,4 @@
-import Axios, {
-  type AxiosInstance,
-  type AxiosRequestConfig,
-  type CustomParamsSerializer
-} from "axios";
+import Axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 import type {
   PureHttpError,
   PureHttpRequestConfig,
@@ -15,38 +11,42 @@ import {
   formatToken,
   getRefreshToken,
   getToken,
+  remoteAccessToken,
   removeToken,
+  setApiLanguage,
   setToken
 } from "@/utils/auth";
 import { useUserStoreHook } from "@/store/modules/user";
 import { message } from "@/utils/message";
 import { ElMessage } from "element-plus";
-import { router } from "@/router";
+// import { router } from "@/router";
 
 // 相关配置请参考：www.axios-js.com/zh-cn/docs/#axios-request-config-1
 const defaultConfig: AxiosRequestConfig = {
   baseURL: import.meta.env.VITE_API_DOMAIN,
   // 请求超时时间
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     Accept: "application/json, text/plain, */*",
     "Content-Type": "application/json",
     "X-Requested-With": "XMLHttpRequest"
   },
   // 数组格式参数序列化（https://github.com/axios/axios/issues/5142）
-  paramsSerializer: {
-    serialize: stringify as unknown as CustomParamsSerializer
-  }
+  // 自动转换为ids=1&ids=2&ids=3这种形式
+  paramsSerializer: params => {
+    return stringify(params, { arrayFormat: "repeat" });
+  },
+  formSerializer: { indexes: null, dots: true }
 };
 
 class PureHttp {
-  /** token过期后，暂存待执行的请求 */
+  /** `token`过期后，暂存待执行的请求 */
   private static requests = [];
-  /** 防止重复刷新token */
+  /** 防止重复刷新`token` */
   private static isRefreshing = false;
   /** 初始化配置对象 */
   private static initConfig: PureHttpRequestConfig = {};
-  /** 保存当前Axios实例对象 */
+  /** 保存当前`Axios`实例对象 */
   private static axiosInstance: AxiosInstance = Axios.create(defaultConfig);
 
   constructor() {
@@ -88,22 +88,21 @@ class PureHttp {
         .catch(error => {
           if (error.response && error.response.status) {
             if (error.response.status === 401) {
-              ElMessage.error(error.response.data.detail);
-              removeToken();
-              window.location.reload();
+              if (error.response.data.code === 40001) {
+                remoteAccessToken();
+                resolve(PureHttp.axiosInstance.request(config));
+                // } else if (error.response.data.code === 40002) {
+              } else {
+                ElMessage.error(error.response.data.detail);
+                removeToken();
+                window.location.reload();
+              }
               // router.push({ name: "Login" })
-            } else if (error.response.status === 403) {
-              ElMessage.error(error.response.data.detail);
-              // router.push("/error/403");
-            } else if (error.response.status === 400) {
-              ElMessage.error(error.response.data.detail);
-              // router.push("/error/403");
-            } else if (error.response.status === 404) {
-              ElMessage.error(error.response.data.detail);
-              router.push("/error/404");
-            } else if (error.response.status === 500) {
-              ElMessage.error(error.response.data.detail);
-              router.push("/error/500");
+            } else {
+              ElMessage.error(
+                error.response.data?.detail ?? error.response.statusText
+              );
+              // router.push("/error/500");
             }
             reject(error.response.data);
           } else {
@@ -114,31 +113,31 @@ class PureHttp {
     });
   }
 
-  /** 单独抽离的post工具函数 */
+  /** 单独抽离的`post`工具函数 */
   public post<T, P>(
     url: string,
-    params?: AxiosRequestConfig<T>,
+    params?: AxiosRequestConfig<P>,
     config?: PureHttpRequestConfig
-  ): Promise<P> {
-    return this.request<P>("post", url, params, config);
+  ): Promise<T> {
+    return this.request<T>("post", url, params, config);
   }
 
-  /** 单独抽离的get工具函数 */
+  /** 单独抽离的`get`工具函数 */
   public get<T, P>(
     url: string,
-    params?: AxiosRequestConfig<T>,
+    params?: AxiosRequestConfig<P>,
     config?: PureHttpRequestConfig
-  ): Promise<P> {
-    return this.request<P>("get", url, params, config);
+  ): Promise<T> {
+    return this.request<T>("get", url, params, config);
   }
 
-  public upload<P>(
+  public upload<T, P>(
     url: string,
-    params?: any,
-    data?: any,
+    params?: AxiosRequestConfig<P>,
+    data?: AxiosRequestConfig<P>,
     config?: PureHttpRequestConfig
-  ): Promise<P> {
-    return this.request<P>(
+  ): Promise<T> {
+    return this.request<T>(
       "post",
       url,
       { data, params },
@@ -155,6 +154,7 @@ class PureHttp {
   private httpInterceptorsRequest(): void {
     PureHttp.axiosInstance.interceptors.request.use(
       async (config: PureHttpRequestConfig): Promise<any> => {
+        setApiLanguage(config);
         // 开启进度条动画
         NProgress.start();
         // 优先判断post/get等方法是否传入回调，否则执行初始化设置等回调
@@ -166,9 +166,9 @@ class PureHttp {
           PureHttp.initConfig.beforeRequestCallback(config);
           return config;
         }
-        /** 请求白名单，放置一些不需要token的接口（通过设置请求白名单，防止token过期后再请求造成的死循环问题） */
+        /** 请求白名单，放置一些不需要`token`的接口（通过设置请求白名单，防止`token`过期后再请求造成的死循环问题） */
         const whiteList = ["/api/system/refresh", "/api/system/login"];
-        return whiteList.find(url => url === config.url)
+        return whiteList.some(url => config.url.endsWith(url))
           ? config
           : new Promise(resolve => {
               const token = getToken();
@@ -228,7 +228,12 @@ class PureHttp {
           PureHttp.initConfig.beforeResponseCallback(response);
           return response.data;
         }
-        return response.data;
+        // 下载文件
+        if (response.headers["content-type"] === "application/json") {
+          return response.data;
+        } else {
+          return response;
+        }
       },
       (error: PureHttpError) => {
         const $error = error;
