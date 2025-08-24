@@ -1,5 +1,6 @@
 # 工具脚本说明
 
+
 ## 文件说明
 
 ### `init_db.py`
@@ -16,7 +17,9 @@ python scripts/init_db.py
 
 ## 其他工具脚本
 
+
 ### 数据库管理
+
 ```bash
 # 创建数据库迁移
 alembic revision --autogenerate -m "描述信息"
