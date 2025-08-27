@@ -38,6 +38,7 @@ class TestDatabase:
                 next(db_generator)
                 
             # 确保rollback被调用
+            assert mock_session.rollback.called, "rollback was not called"
             mock_session.rollback.assert_called_once()
     
     def test_create_tables_success(self):
@@ -94,9 +95,11 @@ class TestDatabase:
             importlib.reload(app.core.database)
             
             # 验证create_engine被调用且使用了正确的参数
-            mock_create_engine.assert_called()
-            call_args = mock_create_engine.call_args
+            assert mock_create_engine.called, "create_engine was not called"
+            mock_create_engine.assert_called_once()
+            call_args = mock_create_engine.call_args_list[0]
             assert "sqlite" in str(call_args[0][0])  # URL包含sqlite
+            assert call_args[1].get('poolclass') == StaticPool
     
     @patch('app.core.database.settings')
     def test_non_sqlite_engine_creation(self, mock_settings):
@@ -110,13 +113,14 @@ class TestDatabase:
             import app.core.database
             importlib.reload(app.core.database)
             
-            mock_create_engine.assert_called()
-            call_args = mock_create_engine.call_args
+            assert mock_create_engine.called, "create_engine was not called"
+            mock_create_engine.assert_called_once()
+            call_args = mock_create_engine.call_args_list[0]
             
             # 检查是否设置了正确的连接池参数
             call_kwargs = call_args[1]
-            assert 'pool_pre_ping' in call_kwargs
-            assert 'pool_recycle' in call_kwargs
+            assert call_kwargs.get('pool_pre_ping') is True
+            assert call_kwargs.get('pool_recycle') == 3600
     
     def test_get_db_context_manager(self):
         """测试get_db作为上下文管理器的行为"""
@@ -143,8 +147,8 @@ class TestDatabase:
         db1 = next(db_gen1)
         db2 = next(db_gen2)
         
-        # 确保是不同的会话实例
-        assert db1 is not db2
+        # 检查两个会话对象是否不同
+        assert db1 is not db2, "Database sessions should be isolated"
         
         # 清理
         try:
@@ -192,17 +196,28 @@ class TestDatabaseIntegration:
             mock_session = MagicMock()
             mock_session_local.return_value = mock_session
             
-            # 模拟在数据库操作中发生异常
-            def side_effect():
-                raise Exception("Transaction error")
+            # 模拟数据库会话中的异常
+            def mock_get_db():
+                db = mock_session_local()
+                try:
+                    yield db
+                    # 模拟提交失败
+                    raise Exception("Transaction error")
+                except Exception:
+                    db.rollback()
+                    raise
+                finally:
+                    db.close()
             
-            mock_session.__enter__ = side_effect
-            
-            with pytest.raises(Exception):
-                db_gen = get_db()
-                next(db_gen)
-            
-            # 验证rollback被调用
+            # 替换原始的get_db函数
+            with patch('app.core.database.get_db', mock_get_db):
+                # 触发异常
+                with pytest.raises(Exception):
+                    db_gen = get_db()
+                    next(db_gen)
+
+            # 确保rollback被调用
+            assert mock_session.rollback.called, "rollback was not called"
             mock_session.rollback.assert_called_once()
             # 验证close被调用
             mock_session.close.assert_called_once()

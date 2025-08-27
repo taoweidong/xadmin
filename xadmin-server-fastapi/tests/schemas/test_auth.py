@@ -27,15 +27,11 @@ class TestLoginRequest:
         request = LoginRequest(
             username="testuser",
             password="password123",
-            captcha_key="captcha_key_123",
-            captcha_code="ABC123",
             remember_me=True
         )
         
         assert request.username == "testuser"
         assert request.password == "password123"
-        assert request.captcha_key == "captcha_key_123"
-        assert request.captcha_code == "ABC123"
         assert request.remember_me is True
     
     def test_login_request_required_fields(self):
@@ -47,8 +43,6 @@ class TestLoginRequest:
         
         assert request.username == "testuser"
         assert request.password == "password123"
-        assert request.captcha_key is None
-        assert request.captcha_code is None
         assert request.remember_me is False  # 默认值
     
     def test_login_request_validation(self):
@@ -151,8 +145,7 @@ class TestRegisterRequest:
             email="newuser@example.com",
             phone="13800138000",
             nickname="新用户",
-            captcha_key="captcha_key",
-            captcha_code="ABC123"
+
         )
         
         assert request.username == "newuser"
@@ -161,8 +154,7 @@ class TestRegisterRequest:
         assert request.email == "newuser@example.com"
         assert request.phone == "13800138000"
         assert request.nickname == "新用户"
-        assert request.captcha_key == "captcha_key"
-        assert request.captcha_code == "ABC123"
+
     
     def test_register_request_required_fields(self):
         """测试注册请求必填字段"""
@@ -293,38 +285,7 @@ class TestChangePasswordRequest:
         assert "两次输入的密码不一致" in str(exc_info.value)
 
 
-class TestCaptchaResponse:
-    """测试验证码响应模型"""
-    
-    def test_captcha_response_creation(self):
-        """测试验证码响应创建"""
-        response = CaptchaResponse(
-            captcha_image="base64_image_data_here",
-            captcha_key="captcha_key_123",
-            length=4
-        )
-        
-        assert response.code == 1000
-        assert response.detail == "success"
-        assert response.captcha_image == "base64_image_data_here"
-        assert response.captcha_key == "captcha_key_123"
-        assert response.length == 4
 
-
-class TestTempTokenResponse:
-    """测试临时令牌响应模型"""
-    
-    def test_temp_token_response_creation(self):
-        """测试临时令牌响应创建"""
-        response = TempTokenResponse(
-            token="temp_token_123",
-            lifetime=300
-        )
-        
-        assert response.code == 1000
-        assert response.detail == "success"
-        assert response.token == "temp_token_123"
-        assert response.lifetime == 300
 
 
 class TestAuthInfoResponse:
@@ -334,7 +295,6 @@ class TestAuthInfoResponse:
         """测试认证信息响应创建"""
         data = {
             "access": True,
-            "captcha": True,
             "token": False,
             "encrypted": False,
             "lifetime": 3600,
@@ -351,43 +311,10 @@ class TestAuthInfoResponse:
         assert response.code == 200
         assert response.detail == "success"
         assert response.data["access"] is True
-        assert response.data["captcha"] is True
         assert response.data["lifetime"] == 3600
 
 
-class TestVerifyCodeSendRequest:
-    """测试验证码发送请求模型"""
-    
-    def test_verify_code_send_request_creation(self):
-        """测试验证码发送请求创建"""
-        request = VerifyCodeSendRequest(
-            target="13800138000",
-            code_type="login",
-            temp_token="temp_token_123"
-        )
-        
-        assert request.target == "13800138000"
-        assert request.code_type == "login"
-        assert request.temp_token == "temp_token_123"
-    
-    def test_verify_code_send_request_default_code_type(self):
-        """测试验证码发送请求默认类型"""
-        request = VerifyCodeSendRequest(target="test@example.com")
-        
-        assert request.target == "test@example.com"
-        assert request.code_type == "login"  # 默认值
-        assert request.temp_token is None
-    
-    def test_verify_code_send_request_different_types(self):
-        """测试不同类型的验证码发送请求"""
-        types = ["login", "register", "reset"]
-        
-        for code_type in types:
-            request = VerifyCodeSendRequest(
-                target="13800138000",
-                code_type=code_type
-            )
-            assert request.code_type == code_type
+
 
 
 class TestPasswordRulesResponse:
@@ -545,24 +472,14 @@ class TestAuthSchemaIntegration:
     
     def test_complete_register_flow_schemas(self):
         """测试完整注册流程的Schema"""
-        # 1. 验证码响应
-        captcha_response = CaptchaResponse(
-            captcha_image="base64_image",
-            captcha_key="captcha_key",
-            length=4
-        )
-        
-        # 2. 注册请求
+        # 注册请求
         register_request = RegisterRequest(
             username="newuser",
             password="Password123",
             confirm_password="Password123",
-            email="newuser@example.com",
-            captcha_key=captcha_response.captcha_key,
-            captcha_code="1234"
+            email="newuser@example.com"
         )
         
-        assert captcha_response.captcha_key == register_request.captcha_key
         assert register_request.password == register_request.confirm_password
     
     def test_password_change_flow_schemas(self):

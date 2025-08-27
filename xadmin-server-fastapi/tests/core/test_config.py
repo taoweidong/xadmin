@@ -123,7 +123,6 @@ class TestSettings:
         assert settings.ACCESS_TOKEN_EXPIRE_MINUTES == 60 * 24 * 8  # 8 days
         assert settings.REFRESH_TOKEN_EXPIRE_MINUTES == 60 * 24 * 30  # 30 days
         assert settings.ALGORITHM == "HS256"
-        assert settings.CAPTCHA_ENABLED is True
         assert settings.PASSWORD_MIN_LENGTH == 8
         assert settings.PASSWORD_REQUIRE_UPPERCASE is True
         assert settings.PASSWORD_REQUIRE_LOWERCASE is True

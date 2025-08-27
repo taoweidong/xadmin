@@ -15,8 +15,8 @@ os.environ.setdefault("PYTHONPATH", str(PROJECT_ROOT))
 
 from app.core.database import SessionLocal, create_tables
 from app.core.security import get_password_hash
-from app.models.user import UserInfo, UserRole, DeptInfo, FieldPermission
-from app.models.system import MenuInfo, SystemConfig
+from app.models.user import UserInfo, UserRole, DeptInfo
+from app.models.system import MenuInfo, SystemConfig, MenuMeta
 from datetime import datetime
 import logging
 
@@ -131,15 +131,25 @@ def create_default_menus(db):
         logger.info("Menus already exist")
         return
     
+    # 创建系统管理菜单元数据
+    system_meta = MenuMeta(
+        title="系统管理",
+        icon="el-icon-setting",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(system_meta)
+    db.commit()
+    db.refresh(system_meta)
+    
     # 创建系统管理菜单
     system_menu = MenuInfo(
-        title="系统管理",
         name="System",
         path="/system",
         menu_type=0,  # 目录
-        icon="el-icon-setting",
         sort=1,
         is_active=True,
+        meta_id=system_meta.id,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -147,52 +157,79 @@ def create_default_menus(db):
     db.commit()
     db.refresh(system_menu)
     
+    # 创建用户管理菜单元数据
+    user_meta = MenuMeta(
+        title="用户管理",
+        icon="el-icon-user",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(user_meta)
+    db.commit()
+    db.refresh(user_meta)
+    
     # 创建用户管理菜单
     user_menu = MenuInfo(
-        title="用户管理",
         name="UserManagement",
         path="/system/user",
         component="system/user/index",
         parent_id=system_menu.id,
         menu_type=1,  # 菜单
-        icon="el-icon-user",
-        permission="user:read",
         sort=1,
         is_active=True,
+        meta_id=user_meta.id,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
     db.add(user_menu)
     
+    # 创建角色管理菜单元数据
+    role_meta = MenuMeta(
+        title="角色管理",
+        icon="el-icon-s-custom",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(role_meta)
+    db.commit()
+    db.refresh(role_meta)
+    
     # 创建角色管理菜单
     role_menu = MenuInfo(
-        title="角色管理",
         name="RoleManagement",
         path="/system/role",
         component="system/role/index",
         parent_id=system_menu.id,
         menu_type=1,
-        icon="el-icon-s-custom",
-        permission="role:read",
         sort=2,
         is_active=True,
+        meta_id=role_meta.id,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
     db.add(role_menu)
     
+    # 创建部门管理菜单元数据
+    dept_meta = MenuMeta(
+        title="部门管理",
+        icon="el-icon-office-building",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(dept_meta)
+    db.commit()
+    db.refresh(dept_meta)
+    
     # 创建部门管理菜单
     dept_menu = MenuInfo(
-        title="部门管理",
         name="DeptManagement",
         path="/system/dept",
         component="system/dept/index",
         parent_id=system_menu.id,
         menu_type=1,
-        icon="el-icon-office-building",
-        permission="dept:read",
         sort=3,
         is_active=True,
+        meta_id=dept_meta.id,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )

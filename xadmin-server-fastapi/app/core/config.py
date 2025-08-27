@@ -9,6 +9,7 @@ except ImportError:
     from pydantic import BaseSettings, field_validator, computed_field
     SettingsConfigDict = None
 import os
+import json
 from pathlib import Path
 
 
@@ -38,12 +39,25 @@ class Settings(BaseSettings):
     
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
+    def assemble_cors_origins(cls, v: Union[str, List[str], None]) -> List[str]:
+        if v is None:
+            return []
+        if isinstance(v, str):
+            # 首先尝试将字符串视为逗号分隔的列表
+            try:
+                return [i.strip() for i in v.split(",")]
+            except:
+                pass
+            # 如果失败，再尝试将其视为JSON字符串
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    return json.loads(v)
+                except json.JSONDecodeError:
+                    return [i.strip() for i in v.strip("[]").split(",")]
+            return [v.strip()]
+        elif isinstance(v, list):
             return v
-        raise ValueError(v)
+        raise ValueError(f"Invalid format for BACKEND_CORS_ORIGINS: {v}")
     
     # 数据库配置
     DB_ENGINE: str = "sqlite"  # sqlite, mysql, postgresql

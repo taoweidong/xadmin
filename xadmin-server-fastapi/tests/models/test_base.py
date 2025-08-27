@@ -21,8 +21,8 @@ class TestTimestampMixin:
     def test_timestamp_mixin_fields(self):
         """测试时间戳字段定义"""
         # 创建一个测试类来验证字段
-        class TestModel(TimestampMixin):
-            pass
+        class TestModel(BaseModel, TimestampMixin):
+            __tablename__ = 'test_timestamp_model'
         
         model = TestModel()
         
@@ -67,17 +67,17 @@ class TestBaseModel:
     
     def test_tablename_generation(self):
         """测试表名自动生成"""
-        class UserInfo(BaseModel):
+        class TestUserInfo(BaseModel):
             pass
         
-        class DeptInfo(BaseModel):
+        class TestDeptInfo(BaseModel):
             pass
         
         class MyTestModel(BaseModel):
             pass
         
-        assert UserInfo.__tablename__ == 'user_info'
-        assert DeptInfo.__tablename__ == 'dept_info'
+        assert TestUserInfo.__tablename__ == 'test_user_info'
+        assert TestDeptInfo.__tablename__ == 'test_dept_info'
         assert MyTestModel.__tablename__ == 'my_test_model'
 
 
@@ -86,8 +86,8 @@ class TestSoftDeleteMixin:
     
     def test_soft_delete_fields(self):
         """测试软删除字段"""
-        class TestModel(SoftDeleteMixin):
-            pass
+        class TestModel(BaseModel, SoftDeleteMixin):
+            __tablename__ = 'test_soft_delete_model'
         
         model = TestModel()
         
@@ -109,8 +109,8 @@ class TestUUIDMixin:
     
     def test_uuid_field(self):
         """测试UUID字段"""
-        class TestModel(UUIDMixin):
-            pass
+        class TestModel(BaseModel, UUIDMixin):
+            __tablename__ = 'test_uuid_model'
         
         model = TestModel()
         
@@ -123,21 +123,30 @@ class TestUUIDMixin:
         assert uuid_col.index is True
         assert uuid_col.default is not None
     
-    def test_uuid_generation(self):
+    def test_uuid_generation(self, test_db_session):
         """测试UUID生成"""
-        class TestModel(UUIDMixin):
-            pass
+        class TestModel(BaseModel, UUIDMixin):
+            __tablename__ = 'test_uuid_model_2'
         
-        # 创建两个实例，验证UUID的唯一性
+        # 创建表
+        TestModel.__table__.create(bind=test_db_session.bind, checkfirst=True)
+        
+        # 创建两个实例，添加到会话
         model1 = TestModel()
         model2 = TestModel()
+        test_db_session.add(model1)
+        test_db_session.add(model2)
+        test_db_session.commit()
         
-        # 由于是default函数，需要调用才能生成
-        uuid1 = TestModel.__table__.columns.get('uuid').default.arg()
-        uuid2 = TestModel.__table__.columns.get('uuid').default.arg()
+        # 访问uuid属性
+        uuid1 = model1.uuid
+        uuid2 = model2.uuid
         
         assert uuid1 != uuid2
         assert len(uuid1) == 36  # UUID v4 格式长度
+        
+        # 清理
+        TestModel.__table__.drop(bind=test_db_session.bind, checkfirst=True)
 
 
 class TestCreatorMixin:
@@ -145,8 +154,8 @@ class TestCreatorMixin:
     
     def test_creator_fields(self):
         """测试创建者字段"""
-        class TestModel(CreatorMixin):
-            pass
+        class TestModel(BaseModel, CreatorMixin):
+            __tablename__ = 'test_creator_model'
         
         model = TestModel()
         
@@ -187,8 +196,8 @@ class TestDescriptionMixin:
     
     def test_description_fields(self):
         """测试描述字段"""
-        class TestModel(DescriptionMixin):
-            pass
+        class TestModel(BaseModel, DescriptionMixin):
+            __tablename__ = 'test_description_model'
         
         model = TestModel()
         
@@ -240,7 +249,7 @@ class TestMixinCombinations:
     def test_mixin_field_inheritance_order(self):
         """测试混入类字段继承顺序"""
         class TestModel(BaseModel, TimestampMixin, SoftDeleteMixin):
-            __tablename__ = 'test_model'
+            __tablename__ = 'test_mixin_order_model'
         
         # 确保所有字段都正确继承
         expected_fields = [

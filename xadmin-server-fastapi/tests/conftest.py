@@ -56,8 +56,8 @@ class MockDeptInfo(MockBase):
         self.code = kwargs.get('code', 'test_dept')
 
 @pytest.fixture
-def test_db_session():
-    """为模型测试创建内存数据库会话"""
+def test_db_engine():
+    """为测试创建内存数据库引擎"""
     # 创建内存SQLite数据库
     engine = create_engine(
         "sqlite:///:memory:",
@@ -66,15 +66,21 @@ def test_db_session():
         echo=False
     )
     
+    yield engine
+
+
+@pytest.fixture
+def test_db_session(test_db_engine):
+    """为模型测试创建内存数据库会话"""
     # 导入所有模型以确保表结构被创建
     from app.models.base import BaseModel
     from app.models.user import UserInfo, UserRole, DeptInfo, DataPermission
     
     # 创建所有表
-    BaseModel.metadata.create_all(bind=engine)
+    BaseModel.metadata.create_all(bind=test_db_engine)
     
     # 创建会话
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
     session = TestingSessionLocal()
     
     try:
@@ -86,13 +92,10 @@ def test_db_session():
 def setup_global_mocks():
     """设置全局mock"""
     
-    # Mock所有SQLAlchemy操作
+    # Mock必要的SQLAlchemy操作，不mock模型类
     with patch('sqlalchemy.create_engine') as mock_create_engine, \
          patch('sqlalchemy.orm.sessionmaker') as mock_sessionmaker, \
-         patch('app.core.database.get_db') as mock_get_db, \
-         patch('app.models.user.UserInfo', MockUserInfo), \
-         patch('app.models.user.UserRole', MockUserRole), \
-         patch('app.models.user.DeptInfo', MockDeptInfo):
+         patch('app.core.database.get_db') as mock_get_db:
         
         # Mock数据库引擎
         mock_engine = MagicMock()
@@ -181,45 +184,11 @@ def mock_settings():
 
 @pytest.fixture
 def client():
-    """测试客户端，使用mock app"""
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
+    """测试客户端，使用实际的app"""
+    # 导入实际的应用
+    from main import app
     
-    # 创建简单的mock app而不是导入实际的app
-    mock_app = FastAPI(title="Test App")
-    
-    # 添加CORS中间件
-    mock_app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    
-    # 基本端点
-    @mock_app.get("/health")
-    def health_check():
-        return {"status": "healthy", "timestamp": 1234567890.0}
-    
-    @mock_app.get("/api/captcha/generate")
-    def generate_captcha():
-        return {
-            "code": 1000,
-            "captcha_image": "mock_base64_image",
-            "captcha_key": "mock_key",
-            "length": 4
-        }
-    
-    @mock_app.get("/api/settings/config")
-    def get_settings():
-        return {"code": 1000, "data": {}}
-    
-    @mock_app.get("/api/message/config")
-    def get_message_config():
-        return {"code": 1000, "data": {}}
-    
-    return TestClient(mock_app)
+    return TestClient(app)
 
 @pytest.fixture
 def mock_user_data():

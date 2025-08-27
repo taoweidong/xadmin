@@ -2,7 +2,7 @@
 用户相关Pydantic Schema模型
 """
 from typing import Optional, List
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, validator, ConfigDict
 from app.schemas.base import BaseSchema, BaseResponse, TimestampSchema, PaginationParams
 from datetime import datetime
 
@@ -54,8 +54,7 @@ class UserProfile(UserBase, TimestampSchema):
     dept_name: Optional[str] = Field(None, description="部门名称")
     role_names: List[str] = Field([], description="角色名称列表")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserListParams(PaginationParams):
@@ -107,8 +106,7 @@ class RoleProfile(RoleBase, TimestampSchema):
     menu_count: int = Field(0, description="菜单数量")
     user_count: int = Field(0, description="用户数量")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RoleListParams(PaginationParams):
@@ -155,8 +153,7 @@ class DeptProfile(DeptBase, TimestampSchema):
     user_count: int = Field(0, description="用户数量")
     children_count: int = Field(0, description="子部门数量")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DeptTreeNode(DeptProfile):
@@ -198,8 +195,7 @@ class DataPermissionProfile(DataPermissionBase, TimestampSchema):
     """数据权限档案Schema"""
     id: int = Field(..., description="权限ID")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DataPermissionListParams(PaginationParams):

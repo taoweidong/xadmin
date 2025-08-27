@@ -2,7 +2,7 @@
 设置相关Pydantic Schema模型
 """
 from typing import Optional, List, Dict, Any, Union
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from app.schemas.base import BaseSchema, BaseResponse, TimestampSchema, PaginationParams
 from datetime import datetime
 
@@ -39,8 +39,7 @@ class SystemConfigProfile(SystemConfigBase, TimestampSchema):
     """系统配置档案Schema"""
     id: int = Field(..., description="配置ID")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SystemConfigListParams(PaginationParams):
@@ -91,8 +90,7 @@ class UserPersonalConfigProfile(UserPersonalConfigBase, TimestampSchema):
     id: int = Field(..., description="配置ID")
     user_id: int = Field(..., description="用户ID")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserPersonalConfigListParams(PaginationParams):

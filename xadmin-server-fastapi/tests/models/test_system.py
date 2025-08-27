@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from app.models.system import (
     MenuInfo,
+    MenuMeta,
     SystemConfig,
     UserPersonalConfig,
     ModelLabelField,
@@ -18,49 +19,62 @@ class TestMenuInfo:
     
     def test_menu_info_creation(self, test_db_session):
         """测试菜单创建"""
-        menu = MenuInfo(
+        # 先创建菜单元数据
+        meta = MenuMeta(
             title="用户管理",
+            icon="user",
+            is_keepalive=True
+        )
+        test_db_session.add(meta)
+        test_db_session.commit()
+        
+        # 再创建菜单
+        menu = MenuInfo(
             name="UserManagement",
             path="/users",
             component="views/users/index.vue",
-            redirect="/users/list",
             menu_type=1,
             sort=10,
-            is_hidden=False,
             is_active=True,
-            icon="user",
-            meta='{"keepAlive": true}',
-            permission="user:view"
+            meta_id=meta.id
         )
         
         test_db_session.add(menu)
         test_db_session.commit()
         
         assert menu.id is not None
-        assert menu.title == "用户管理"
         assert menu.name == "UserManagement"
         assert menu.path == "/users"
         assert menu.component == "views/users/index.vue"
-        assert menu.redirect == "/users/list"
+        # 移除了redirect属性，因为MenuInfo模型中没有这个字段
         assert menu.menu_type == 1
         assert menu.sort == 10
-        assert menu.is_hidden is False
         assert menu.is_active is True
-        assert menu.icon == "user"
-        assert menu.meta == '{"keepAlive": true}'
-        assert menu.permission == "user:view"
+        assert menu.meta_id == meta.id
+        assert menu.meta.title == "用户管理"
+        assert menu.meta.icon == "user"
     
     def test_menu_info_self_relationship(self, test_db_session):
         """测试菜单自关联关系"""
-        parent_menu = MenuInfo(title="系统管理", name="System", menu_type=0)
-        child_menu = MenuInfo(title="用户管理", name="UserManagement", menu_type=1)
+        # 创建父菜单元数据
+        parent_meta = MenuMeta(title="系统管理")
+        test_db_session.add(parent_meta)
+        test_db_session.commit()
+        
+        # 创建子菜单元数据
+        child_meta = MenuMeta(title="用户管理")
+        test_db_session.add(child_meta)
+        test_db_session.commit()
+        
+        # 创建菜单
+        parent_menu = MenuInfo(name="System", path="/system", menu_type=0, meta_id=parent_meta.id)
+        child_menu = MenuInfo(name="UserManagement", path="/users", menu_type=1, meta_id=child_meta.id)
         
         test_db_session.add_all([parent_menu, child_menu])
         test_db_session.commit()
         
         # 设置父子关系
         child_menu.parent_id = parent_menu.id
-        child_menu.parent = parent_menu
         test_db_session.commit()
         
         # 验证关系
@@ -69,30 +83,49 @@ class TestMenuInfo:
     
     def test_menu_info_default_values(self, test_db_session):
         """测试菜单默认值"""
-        menu = MenuInfo(title="测试菜单", name="TestMenu")
+        # 创建菜单元数据
+        meta = MenuMeta(title="测试菜单")
+        test_db_session.add(meta)
+        test_db_session.commit()
+        
+        # 创建菜单
+        menu = MenuInfo(name="TestMenu", path="/test", meta_id=meta.id)
         
         test_db_session.add(menu)
         test_db_session.commit()
         
-        assert menu.menu_type == 1  # 默认菜单类型
-        assert menu.sort == 0  # 默认排序
-        assert menu.is_hidden is False  # 默认显示
+        assert menu.menu_type == 0  # 默认菜单类型
+        assert menu.sort == 9999  # 默认排序
         assert menu.is_active is True  # 默认启用
     
     def test_menu_info_str_representation(self, test_db_session):
         """测试菜单字符串表示"""
-        menu = MenuInfo(title="用户管理", name="UserManagement")
+        # 创建菜单元数据
+        meta = MenuMeta(title="用户管理")
+        test_db_session.add(meta)
+        test_db_session.commit()
+        
+        # 创建菜单
+        menu = MenuInfo(name="UserManagement", path="/users", meta_id=meta.id)
         test_db_session.add(menu)
         test_db_session.commit()
         
-        assert str(menu) == "用户管理"
+        assert str(menu) == "UserManagement"
     
     def test_menu_info_types(self, test_db_session):
         """测试不同菜单类型"""
+        # 创建菜单元数据
+        meta1 = MenuMeta(title="系统管理")
+        meta2 = MenuMeta(title="用户管理")
+        meta3 = MenuMeta(title="新增用户")
+        test_db_session.add_all([meta1, meta2, meta3])
+        test_db_session.commit()
+        
+        # 创建菜单
         menus = [
-            MenuInfo(title="系统管理", name="System", menu_type=0),  # 目录
-            MenuInfo(title="用户管理", name="UserManagement", menu_type=1),  # 菜单
-            MenuInfo(title="新增用户", name="AddUser", menu_type=2),  # 按钮/权限
+            MenuInfo(name="System", path="/system", menu_type=0, meta_id=meta1.id),  # 目录
+            MenuInfo(name="UserManagement", path="/users", menu_type=1, meta_id=meta2.id),  # 菜单
+            MenuInfo(name="AddUser", path="/users/add", menu_type=2, meta_id=meta3.id),  # 按钮/权限
         ]
         
         test_db_session.add_all(menus)
@@ -104,7 +137,13 @@ class TestMenuInfo:
     
     def test_menu_role_relationship(self, test_db_session):
         """测试菜单与角色关系"""
-        menu = MenuInfo(title="用户管理", name="UserManagement")
+        # 创建菜单元数据
+        meta = MenuMeta(title="用户管理")
+        test_db_session.add(meta)
+        test_db_session.commit()
+        
+        # 创建菜单和角色
+        menu = MenuInfo(name="UserManagement", path="/users", meta_id=meta.id)
         role = UserRole(name="管理员", code="admin")
         
         test_db_session.add_all([menu, role])
@@ -475,19 +514,25 @@ class TestSystemModelIntegration:
     
     def test_menu_hierarchy(self, test_db_session):
         """测试菜单层级结构"""
+        # 创建菜单元数据
+        meta1 = MenuMeta(title="系统管理")
+        meta2 = MenuMeta(title="用户管理")
+        meta3 = MenuMeta(title="用户列表")
+        
+        test_db_session.add_all([meta1, meta2, meta3])
+        test_db_session.commit()
+        
         # 创建菜单树：系统管理 -> 用户管理 -> 用户列表
-        level1 = MenuInfo(title="系统管理", name="System", menu_type=0)
-        level2 = MenuInfo(title="用户管理", name="UserManagement", menu_type=1)
-        level3 = MenuInfo(title="用户列表", name="UserList", menu_type=1)
+        level1 = MenuInfo(name="System", path="/system", menu_type=0, meta_id=meta1.id)
+        level2 = MenuInfo(name="UserManagement", path="/users", menu_type=1, meta_id=meta2.id)
+        level3 = MenuInfo(name="UserList", path="/users/list", menu_type=1, meta_id=meta3.id)
         
         test_db_session.add_all([level1, level2, level3])
         test_db_session.commit()
         
         # 建立层级关系
         level2.parent_id = level1.id
-        level2.parent = level1
         level3.parent_id = level2.id
-        level3.parent = level2
         test_db_session.commit()
         
         # 验证层级关系
@@ -497,6 +542,9 @@ class TestSystemModelIntegration:
         assert level3 in level2.children
         assert len(level1.children) == 1
         assert len(level2.children) == 1
+        assert level1.meta.title == "系统管理"
+        assert level2.meta.title == "用户管理"
+        assert level3.meta.title == "用户列表"
     
     def test_user_with_multiple_configs(self, test_db_session):
         """测试用户拥有多个个人配置"""

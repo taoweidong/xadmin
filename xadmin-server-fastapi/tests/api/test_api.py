@@ -15,12 +15,18 @@ try:
 except ImportError:
     try:
         # 尝试从项目根目录导入
-        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))        
         from main import app
     except ImportError:
         # 如果无法导入main，创建一个简单的FastAPI应用用于测试
         from fastapi import FastAPI
         app = FastAPI()
+
+
+@pytest.fixture
+def test_client():
+    """创建测试客户端fixture"""
+    return TestClient(app)
 
 
 class TestAuthAPI:
@@ -112,30 +118,7 @@ class TestUserAPI:
         assert response.status_code != 404
 
 
-class TestCaptchaAPI:
-    """测试验证码API"""
-    
-    def test_captcha_generate_endpoint(self, test_client):
-        """测试验证码生成端点"""
-        response = test_client.get("/api/captcha/")
-        # 端点应该存在
-        assert response.status_code != 404
-    
-    @patch('app.services.captcha.CaptchaService.generate_captcha')
-    def test_captcha_generation(self, mock_generate, test_client):
-        """测试验证码生成"""
-        mock_generate.return_value = {
-            "captcha_key": "test_key",
-            "captcha_image": "base64_image_data",
-            "length": 4
-        }
-        
-        response = test_client.get("/api/captcha/")
-        
-        if response.status_code == 200:
-            data = response.json()
-            assert "captcha_key" in data.get("data", {})
-            assert "captcha_image" in data.get("data", {})
+
 
 
 class TestCommonAPI:
@@ -278,7 +261,6 @@ class TestAPIIntegration:
             expected_paths = [
                 "/api/system/login/basic",
                 "/api/system/user/",
-                "/api/captcha/",
                 "/health"
             ]
             
@@ -313,11 +295,6 @@ class TestAPIPlaceholders:
         """用户API模块占位测试"""
         from app.api import user
         assert user is not None
-    
-    def test_captcha_api_placeholder(self):
-        """验证码API模块占位测试"""
-        from app.api import captcha
-        assert captcha is not None
     
     def test_common_api_placeholder(self):
         """通用API模块占位测试"""

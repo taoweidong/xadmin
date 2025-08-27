@@ -72,6 +72,7 @@ class MenuInfo(BaseModel, AuditMixin):
     # 关联关系
     meta = relationship("MenuMeta")
     model = relationship("ModelLabelField", secondary="menu_model_association", back_populates="menus")
+    roles = relationship("UserRole", secondary="role_menu_association", back_populates="menus")
     
     def __str__(self):
         return self.name

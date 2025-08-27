@@ -57,6 +57,7 @@ python build/run.py
 ```
 
 ### 方法二：手动启动
+
 ```bash
 # 1. 激活虚拟环境
 .venv\Scripts\activate
@@ -72,6 +73,7 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
 ```
 
 ### 方法三：Docker 部署
+
 ```bash
 # 构建并启动
 docker-compose up -d
@@ -108,12 +110,14 @@ python manage.py test-cov
 ## 📦 依赖管理
 
 ### 生产环境依赖
+
 ```bash
 # 安装核心依赖
 pip install -r requirements.txt
 ```
 
 ### 开发环境依赖
+
 ```bash
 # 方法一：分别安装
 pip install -r requirements.txt
@@ -124,6 +128,7 @@ python manage.py install-dev
 ```
 
 ### 依赖文件说明
+
 - **requirements.txt**: 生产环境核心依赖，包含30个精选包
 - **requirements-dev.txt**: 开发工具依赖，包含测试、格式化、文档工具
 
