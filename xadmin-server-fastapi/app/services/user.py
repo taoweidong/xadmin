@@ -160,10 +160,12 @@ class UserService:
     
     def update_last_login(self, user_id: int):
         """更新最后登录时间"""
-        user = self.get_by_id(user_id)
-        if user:
-            user.last_login = datetime.utcnow()
-            self.db.commit()
+        # 使用更高效的更新方式，避免先查询再更新
+        self.db.query(UserInfo).filter(UserInfo.id == user_id).update({
+            UserInfo.last_login: datetime.utcnow(),
+            UserInfo.updated_at: datetime.utcnow()
+        })
+        self.db.commit()
     
     def change_password(self, user_id: int, old_password: str, new_password: str) -> bool:
         """修改密码"""
@@ -181,14 +183,14 @@ class UserService:
     
     def reset_password(self, user_id: int, new_password: str) -> bool:
         """重置密码"""
-        user = self.get_by_id(user_id)
-        if not user:
-            return False
-        
-        user.password = get_password_hash(new_password)
-        user.updated_at = datetime.utcnow()
+        # 使用更高效的更新方式，避免先查询再更新
+        hashed_password = get_password_hash(new_password)
+        result = self.db.query(UserInfo).filter(UserInfo.id == user_id).update({
+            UserInfo.password: hashed_password,
+            UserInfo.updated_at: datetime.utcnow()
+        })
         self.db.commit()
-        return True
+        return result > 0
     
     def assign_roles(self, user_id: int, role_ids: List[int]) -> bool:
         """分配角色"""
@@ -287,12 +289,24 @@ class LoginLogService:
     
     def update_logout_time(self, log_id: int):
         """更新登出时间"""
+        # 使用更高效的更新方式
+        from datetime import datetime
+        logout_time = datetime.utcnow()
+        
+        # 先查询登录时间
         log = self.db.query(LoginLog).filter(LoginLog.id == log_id).first()
-        if log:
-            log.logout_time = datetime.utcnow()
-            if log.login_time:
-                log.duration = int((log.logout_time - log.login_time).total_seconds())
-            self.db.commit()
+        if log and log.login_time:
+            duration = int((logout_time - log.login_time).total_seconds())
+            # 批量更新
+            self.db.query(LoginLog).filter(LoginLog.id == log_id).update({
+                LoginLog.logout_time: logout_time,
+                LoginLog.duration: duration
+            })
+        else:
+            self.db.query(LoginLog).filter(LoginLog.id == log_id).update({
+                LoginLog.logout_time: logout_time
+            })
+        self.db.commit()
     
     def get_user_login_logs(self, user_id: int, params: PaginationParams) -> Dict[str, Any]:
         """获取用户登录日志"""

@@ -21,6 +21,7 @@ from app.services.user import UserService, LoginLogService
 # 验证码服务已移除
 from app.models.user import UserInfo
 from app.core.config import settings
+from app.utils.user_utils import create_token_response
 from datetime import timedelta
 import logging
 
@@ -87,13 +88,6 @@ async def login_basic(
             detail="账户已被禁用"
         )
     
-    # 创建令牌
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
-    
-    access_token = create_access_token(user.username, access_token_expires)
-    refresh_token = create_refresh_token(user.username, refresh_token_expires)
-    
     # 更新最后登录时间
     user_service.update_last_login(user.id)
     
@@ -108,16 +102,7 @@ async def login_basic(
         "user_agent": request.headers.get("user-agent")
     })
     
-    return TokenResponse(
-        code=1000,
-        detail="登录成功",
-        data={
-            "access": access_token,
-            "refresh": refresh_token,
-            "access_token_lifetime": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            "refresh_token_lifetime": settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60
-        }
-    )
+    return create_token_response(user)
 
 
 # 验证码登录功能已移除
@@ -247,23 +232,7 @@ async def register(
     
     user = user_service.create_user(user_data)
     
-    # 创建令牌
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
-    
-    access_token = create_access_token(user.username, access_token_expires)
-    refresh_token = create_refresh_token(user.username, refresh_token_expires)
-    
-    return TokenResponse(
-        code=1000,
-        detail="注册成功",
-        data={
-            "access": access_token,
-            "refresh": refresh_token,
-            "access_token_lifetime": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            "refresh_token_lifetime": settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60
-        }
-    )
+    return create_token_response(user)
 
 
 # 验证码相关接口已移除

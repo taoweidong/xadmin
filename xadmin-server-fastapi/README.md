@@ -150,6 +150,10 @@ python manage.py install-dev
 
 详细的开发指南请查看 [docs/README.md](docs/README.md)
 
+## 🚀 优化指南
+
+项目优化指南请查看 [docs/optimization_guide.md](docs/optimization_guide.md)
+
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
