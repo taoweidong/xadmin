@@ -33,7 +33,6 @@ class UserInfo(DbAuditModel, AbstractUser, ModeTypeAbstract):
     email = models.EmailField(verbose_name=_("Email"), default='', blank=True, db_index=True)
 
     roles = models.ManyToManyField(to="system.UserRole", verbose_name=_("Role permission"), blank=True, null=True)
-    rules = models.ManyToManyField(to="system.DataPermission", verbose_name=_("Data permission"), blank=True, null=True)
     dept = models.ForeignKey(to="system.DeptInfo", verbose_name=_("Department"), on_delete=models.PROTECT, blank=True,
                              null=True, related_query_name="dept_query")
 

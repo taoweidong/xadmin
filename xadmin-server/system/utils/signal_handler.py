@@ -19,7 +19,7 @@ from common.core.config import SysConfig
 from common.core.models import DbAuditModel
 from common.core.serializers import get_sub_serializer_fields
 from common.core.utils import PrintLogFormat
-from system.models import Menu, NoticeMessage, UserRole, UserInfo, NoticeUserRead, DeptInfo, DataPermission, \
+from system.models import Menu, NoticeMessage, UserRole, UserInfo, NoticeUserRead, DeptInfo, \
     SystemConfig, ModelLabelField
 from system.utils.notify import push_notice_messages
 
@@ -158,11 +158,6 @@ def clean_cache_handler(sender, instance, **kwargs):
                 MagicCacheData.invalid_cache(f'get_user_permission_{pk}')  # 清理权限
         for obj in DeptInfo.objects.filter(roles__menu=instance).distinct():
             invalid_roles_cache(obj)
-        logger.info(f"invalid cache {sender}")
-
-    if issubclass(sender, DataPermission):
-        invalid_roles_cache(instance)
-        invalid_dept_caches(instance)
         logger.info(f"invalid cache {sender}")
 
     if issubclass(sender, UserRole):

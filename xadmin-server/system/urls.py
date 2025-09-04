@@ -16,7 +16,6 @@ from system.views.admin.menu import MenuView
 from system.views.admin.modelfield import ModelLabelFieldView
 from system.views.admin.notice import NoticeUserReadMessageView, NoticeMessageView
 from system.views.admin.operationlog import OperationLogView
-from system.views.admin.permission import DataPermissionView
 from system.views.admin.role import RoleView
 from system.views.admin.user import UserView
 from system.views.auth.login import BasicLoginView, VerifyCodeLoginView
@@ -83,7 +82,6 @@ router.register('user', UserView, basename='user')
 router.register('dept', DeptView, basename='dept')
 router.register('menu', MenuView, basename='menu')
 router.register('role', RoleView, basename='role')
-router.register('permission', DataPermissionView, basename='permission')
 router.register('field', ModelLabelFieldView, basename='model_label_field')
 
 # 配置相关

@@ -181,5 +181,3 @@ python manage.py dump_init_json
     location / {
         try_files $uri $uri/  /index.html;
     }
-
-```
