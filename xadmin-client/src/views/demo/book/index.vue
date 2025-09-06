@@ -1,9 +1,31 @@
 <script lang="ts" setup>
-import RePlusCRUD from "@/components/RePlusCRUD";
 import { useDemoBook } from "./utils/hook";
+import { ref } from "vue";
 
-const { api, auth } = useDemoBook();
+defineOptions({
+  name: "DemoBook" // 必须定义，用于菜单自动匹配组件
+});
+const tableRef = ref();
+const {
+  api,
+  auth,
+  addOrEditOptions,
+  listColumnsFormat,
+  searchColumnsFormat,
+  tableBarButtonsProps,
+  operationButtonsProps
+} = useDemoBook(tableRef);
 </script>
 <template>
-  <RePlusCRUD :api="api" :auth="auth" locale-name="demoBook" />
+  <RePlusPage
+    ref="tableRef"
+    :api="api"
+    :auth="auth"
+    locale-name="demoBook"
+    :search-columns-format="searchColumnsFormat"
+    :add-or-edit-options="addOrEditOptions"
+    :list-columns-format="listColumnsFormat"
+    :tableBarButtonsProps="tableBarButtonsProps"
+    :operationButtonsProps="operationButtonsProps"
+  />
 </template>

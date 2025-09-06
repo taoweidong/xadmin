@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import { useSystemConfig } from "./utils/hook";
-import RePlusCRUD from "@/components/RePlusCRUD";
 
 defineOptions({
   name: "SystemConfig"
@@ -13,7 +12,7 @@ const { api, auth, operationButtonsProps } = useSystemConfig(tableRef);
 </script>
 
 <template>
-  <RePlusCRUD
+  <RePlusPage
     ref="tableRef"
     :api="api"
     :auth="auth"

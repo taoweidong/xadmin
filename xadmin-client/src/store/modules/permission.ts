@@ -12,8 +12,7 @@ import {
 } from "../utils";
 import { useMultiTagsStoreHook } from "./multiTags";
 
-export const usePermissionStore = defineStore({
-  id: "pure-permission",
+export const usePermissionStore = defineStore("pure-permission", {
   state: () => ({
     // 静态路由生成的菜单
     constantMenus,
@@ -24,7 +23,7 @@ export const usePermissionStore = defineStore({
     // 缓存页面keepAlive
     cachePageList: [],
     // 全局的授权
-    permissionAuths: []
+    permissionAuths: {}
   }),
   actions: {
     handleWholeAuths(auths: any[]) {
@@ -39,7 +38,7 @@ export const usePermissionStore = defineStore({
         filterTree(ascending(this.constantMenus.concat(routes)))
       );
       this.flatteningRoutes = formatFlatteningRoutes(
-        this.constantMenus.concat(routes)
+        this.constantMenus.concat(routes) as any
       );
     },
     cacheOperate({ mode, name }: cacheType) {
@@ -81,7 +80,6 @@ export const usePermissionStore = defineStore({
       this.wholeMenus = [];
       this.cachePageList = [];
       this.flatteningRoutes = [];
-      this.metaAuths = [];
     }
   }
 });

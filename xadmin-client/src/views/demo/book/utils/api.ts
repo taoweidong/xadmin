@@ -1,5 +1,16 @@
 import { BaseApi } from "@/api/base";
+import type { BaseResult } from "@/api/types";
 
-const bookApi = new BaseApi("/api/demo/book");
-bookApi.update = bookApi.patch;
+class BookApi extends BaseApi {
+  push = (pk: number | string) => {
+    return this.request<BaseResult>(
+      "post",
+      {},
+      {},
+      `${this.baseApi}/${pk}/push`
+    );
+  };
+}
+
+const bookApi = new BookApi("/api/demo/book");
 export { bookApi };

@@ -18,7 +18,7 @@ from rest_framework.viewsets import GenericViewSet
 from common.core.response import ApiResponse
 from common.swagger.utils import get_default_response_schema
 from system.models import UserLoginLog, OperationLog, UserInfo
-from system.serializers.log import UserLoginLogSerializer
+from system.serializers.log import LoginLogSerializer
 
 
 def trend_info(queryset, limit_day=30):
@@ -26,9 +26,9 @@ def trend_info(queryset, limit_day=30):
     limit_days = today - datetime.timedelta(days=limit_day, hours=today.hour, minutes=today.minute,
                                             seconds=today.second, microseconds=today.microsecond)
     data_count = queryset.filter(created_time__gte=limit_days).annotate(
-        date=TruncDay('created_time')).values(
-        'date').annotate(count=Count('pk')).order_by('-date')
-    dict_count = {d.get('date').strftime('%m-%d'): d.get('count') for d in data_count}
+        created_time_day=TruncDay('created_time')).values(
+        'created_time_day').annotate(count=Count('pk')).order_by('-created_time_day')
+    dict_count = {d.get('created_time_day').strftime('%m-%d'): d.get('count') for d in data_count}
     results = []
     for i in range(limit_day, -1, -1):
         date = (today - datetime.timedelta(days=i)).strftime('%m-%d')
@@ -64,37 +64,42 @@ def get_schema_response(has_count=True):
     )
 
 
-class DashboardView(GenericViewSet):
+class DashboardViewSet(GenericViewSet):
     """面板统计信息"""
     queryset = UserLoginLog.objects.all()
-    serializer_class = UserLoginLogSerializer
+    serializer_class = LoginLogSerializer
     ordering_fields = ['created_time']
 
     @extend_schema(responses=get_schema_response())
     @action(methods=['GET'], detail=False, url_path='user-login-total')
     def user_login_total(self, request, *args, **kwargs):
+        """{cls}-用户登录"""
         results, percent, count = trend_info(self.filter_queryset(self.get_queryset()), 7)
         return ApiResponse(results=results, percent=percent, count=count)
 
     @extend_schema(responses=get_schema_response())
     @action(methods=['GET'], detail=False, queryset=UserInfo.objects.all(), url_path='user-total')
     def user_total(self, request, *args, **kwargs):
+        """{cls}-用户数量"""
         results, percent, count = trend_info(self.filter_queryset(self.get_queryset()), 7)
         return ApiResponse(results=results, percent=percent, count=count)
 
     @extend_schema(responses=get_schema_response(False))
     @action(methods=['GET'], detail=False, queryset=UserInfo.objects.all(), url_path='user-registered-trend')
     def user_registered_trend(self, request, *args, **kwargs):
+        """{cls}-注册报表"""
         return ApiResponse(data=trend_info(self.filter_queryset(self.get_queryset()))[0])
 
     @extend_schema(responses=get_schema_response(False))
     @action(methods=['GET'], detail=False, url_path='user-login-trend')
     def user_login_trend(self, request, *args, **kwargs):
+        """{cls}-登录报表"""
         return ApiResponse(data=trend_info(self.filter_queryset(self.get_queryset()))[0])
 
     @extend_schema(responses=get_schema_response())
     @action(methods=['GET'], detail=False, queryset=OperationLog.objects.all(), url_path='today-operate-total')
     def today_operate_total(self, request, *args, **kwargs):
+        """{cls}-最近操作日志"""
         results, percent, count = trend_info(self.filter_queryset(self.get_queryset()), 7)
         return ApiResponse(results=results, percent=percent, count=count)
 
@@ -107,6 +112,7 @@ class DashboardView(GenericViewSet):
     )
     @action(methods=['GET'], detail=False, queryset=UserInfo.objects.all(), url_path='user-active')
     def user_active(self, request, *args, **kwargs):
+        """{cls}-活跃用户"""
         today = timezone.now()
         active_date_list = [1, 3, 7, 30]
         results = []

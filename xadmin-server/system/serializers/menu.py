@@ -4,18 +4,16 @@
 # filename : menu
 # author : ly_13
 # date : 8/10/2024
-import logging
 
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from common.core.fields import BasePrimaryKeyRelatedField, LabeledChoiceField
 from common.core.serializers import BaseModelSerializer
-from system.models import Menu, MenuMeta, ModelLabelField
+from common.utils import get_logger
+from system.models import Menu, MenuMeta
 
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__name__)
 
 
 class MenuMetaSerializer(BaseModelSerializer):
@@ -32,51 +30,26 @@ class MenuSerializer(BaseModelSerializer):
 
     class Meta:
         model = Menu
-        fields = ['pk', 'name', 'rank', 'path', 'component', 'meta', 'parent', 'menu_type', 'is_active',
-                  'model', 'method']
+        fields = [
+            'pk', 'name', 'rank', 'path', 'component', 'meta', 'parent', 'menu_type', 'is_active', 'model', 'method'
+        ]
         # read_only_fields = ['pk'] # 用于文件导入导出时，不丢失上级节点
-        extra_kwargs = {'rank': {'read_only': True}}
-
-    # 使用select_related优化外键查询
-    parent = BasePrimaryKeyRelatedField(
-        queryset=Menu.objects.select_related('meta').all(), 
-        allow_null=True, required=False,
-        label=_("Parent menu"), attrs=['pk', 'name']
-    )
-
-    # 使用select_related优化多对多关系查询
-    model = BasePrimaryKeyRelatedField(
-        queryset=ModelLabelField.objects.select_related('parent').all(), 
-        allow_null=True, required=False,
-        label=_("Model"), attrs=['pk', 'name', 'label'], many=True
-    )
-    
-    menu_type = LabeledChoiceField(
-        choices=Menu.MenuChoices.choices,
-        default=Menu.MenuChoices.DIRECTORY, label=_("Menu type")
-    )
+        extra_kwargs = {
+            'parent': {'attrs': ['pk', 'name'], 'allow_null': True, 'required': False},
+            'model': {'attrs': ['pk', 'name', 'label'], 'allow_null': True, 'required': False},
+        }
 
     def update(self, instance, validated_data):
         with transaction.atomic():
             serializer = MenuMetaSerializer(instance.meta, data=validated_data.pop('meta'), partial=True,
-                                            context=self.context, request=self.request)
+                                            context=self.context)
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return super().update(instance, validated_data)
 
     def create(self, validated_data):
         with transaction.atomic():
-            serializer = MenuMetaSerializer(data=validated_data.pop('meta'), context=self.context, request=self.request)
+            serializer = MenuMetaSerializer(data=validated_data.pop('meta'), context=self.context)
             serializer.is_valid(raise_exception=True)
             validated_data['meta'] = serializer.save()
             return super().create(validated_data)
-
-
-class MenuPermissionSerializer(MenuSerializer):
-    class Meta:
-        model = Menu
-        fields = ['pk', 'title', 'parent', 'menu_type']
-        read_only_fields = ['pk']
-        extra_kwargs = {'rank': {'read_only': True}}
-
-    title = serializers.CharField(source='meta.title', read_only=True, label=_("Menu title"))

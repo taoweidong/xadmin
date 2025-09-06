@@ -1,30 +1,23 @@
 import { useI18n } from "vue-i18n";
 import { systemConfigApi } from "@/api/system/config/system";
-import { hasAuth } from "@/router/utils";
-import { reactive, type Ref, shallowRef } from "vue";
-import { handleOperation, type OperationProps } from "@/components/RePlusCRUD";
+import { getDefaultAuths } from "@/router/utils";
+import { getCurrentInstance, reactive, type Ref, shallowRef } from "vue";
+import { handleOperation, type OperationProps } from "@/components/RePlusPage";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import CircleClose from "@iconify-icons/ep/circle-close";
+import CircleClose from "~icons/ep/circle-close";
 
 export function useSystemConfig(tableRef: Ref) {
   const { t } = useI18n();
 
   const api = reactive(systemConfigApi);
-  api.update = api.patch;
 
   const auth = reactive({
-    list: hasAuth("list:systemSystemConfig"),
-    create: hasAuth("create:systemSystemConfig"),
-    delete: hasAuth("delete:systemSystemConfig"),
-    update: hasAuth("update:systemSystemConfig"),
-    invalid: hasAuth("invalid:systemSystemConfig"),
-    export: hasAuth("export:systemSystemConfig"),
-    import: hasAuth("import:systemSystemConfig"),
-    batchDelete: hasAuth("batchDelete:systemSystemConfig")
+    invalid: false,
+    ...getDefaultAuths(getCurrentInstance(), ["invalid"])
   });
 
   const operationButtonsProps = shallowRef<OperationProps>({
-    width: 260,
+    width: 250,
     buttons: [
       {
         text: t("configSystem.invalidCache"),

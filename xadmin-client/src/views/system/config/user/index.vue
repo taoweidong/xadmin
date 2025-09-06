@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import { useUserConfig } from "./utils/hook";
-import RePlusCRUD from "@/components/RePlusCRUD";
 
 defineOptions({
-  name: "SystemUserConfig"
+  name: "UserConfig"
 });
 
 const tableRef = ref();
@@ -19,7 +18,7 @@ const {
 </script>
 
 <template>
-  <RePlusCRUD
+  <RePlusPage
     ref="tableRef"
     :api="api"
     :auth="auth"

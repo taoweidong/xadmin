@@ -1,22 +1,53 @@
-FROM python:3.12.5-slim
+FROM nineaiyu/xadmin-server-base:20250711_093717 AS stage-build
+ARG VERSION
 
-# add pip cn mirrors
-ARG PIP_MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple
+WORKDIR /data/xadmin-server
 
-# set apt cn mirrors
-RUN sed -i s@deb.debian.org@mirrors.tuna.tsinghua.edu.cn@ /etc/apt/sources.list.d/debian.sources
-RUN apt update && apt-get install gettext libmariadb-dev g++ pkg-config -y && rm -rf /var/lib/apt/lists/*
+COPY . .
 
-# install pip
-COPY requirements.txt /opt/requirements.txt
-RUN cd /opt/ && pip install -U setuptools pip -i ${PIP_MIRROR} --ignore-installed && pip install --no-cache-dir -r requirements.txt -i ${PIP_MIRROR}
+RUN echo > config.yml \
+    && \
+    if [ -n "${VERSION}" ]; then \
+        sed -i "s@VERSION = .*@VERSION = '${VERSION}'@g" server/const.py; \
+    fi
 
-#RUN rm -rf /var/cache/yum/
+FROM python:3.13.3-slim
 
-WORKDIR /data/xadmin-server/
-RUN addgroup --system --gid 1001 nginx \
-    && adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 1001 nginx
+ENV LANG=en_US.UTF-8 \
+    PATH=/data/py3/bin:$PATH
 
+ARG APT_MIRROR=http://deb.debian.org
 
-#ENTRYPOINT ["python", "manage.py", "start", "all","-u","nginx"]
+ARG DEPENDENCIES="                    \
+        gettext                       \
+        curl                          \
+        libmariadb-dev"
+
+RUN set -ex \
+    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && apt-get update > /dev/null \
+    && apt-get -y install --no-install-recommends ${DEPENDENCIES} \
+    && echo "no" | dpkg-reconfigure dash \
+    && apt-get clean all \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=stage-build /data /data
+COPY --from=stage-build /usr/local/bin /usr/local/bin
+
+#RUN addgroup --system --gid 1001 nginx \
+#    && adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 1001 nginx
+
+WORKDIR /data/xadmin-server
+
+VOLUME /data/xadmin-server/data
+
+#USER 1001
+
 ENTRYPOINT ["/bin/bash", "entrypoint.sh"]
+
+EXPOSE 8896
+
+STOPSIGNAL SIGQUIT
+
+CMD ["start", "all"]

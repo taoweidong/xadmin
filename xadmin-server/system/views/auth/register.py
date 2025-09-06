@@ -25,14 +25,13 @@ from system.models import DeptInfo, UserInfo
 from system.utils.auth import get_token_lifetime, save_login_log, verify_sms_email_code
 
 
-class RegisterView(GenericAPIView):
+class RegisterViewAPIView(GenericAPIView):
     """用户注册"""
     permission_classes = []
     authentication_classes = []
     throttle_classes = [RegisterThrottle]
 
     @extend_schema(
-        description="注册账户",
         request=OpenApiRequest(
             build_object_type(
                 properties={
@@ -58,6 +57,7 @@ class RegisterView(GenericAPIView):
         )
     )
     def post(self, request, *args, **kwargs):
+        """注册账户"""
         if not settings.SECURITY_REGISTER_ACCESS_ENABLED:
             return ApiResponse(code=1001, detail=_("Registration forbidden"))
 
@@ -92,8 +92,9 @@ class RegisterView(GenericAPIView):
                 dept = DeptInfo.objects.filter(is_active=True, auto_bind=True).first()
             if dept:
                 user.dept = dept
+                user.creator = user
                 user.dept_belong = dept
-                update_fields.extend(['dept_belong', 'dept'])
+                update_fields.extend(['dept_belong', 'dept', 'creator'])
 
         refresh = RefreshToken.for_user(user)
         result = {

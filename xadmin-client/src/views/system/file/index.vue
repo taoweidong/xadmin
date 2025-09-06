@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import { useSystemUploadFile } from "./utils/hook";
-import RePlusCRUD from "@/components/RePlusCRUD";
 
 defineOptions({
-  name: "systemUploadFile"
+  name: "SystemUploadFile"
 });
 
 const tableRef = ref();
@@ -20,7 +19,7 @@ const {
 </script>
 
 <template>
-  <RePlusCRUD
+  <RePlusPage
     ref="tableRef"
     :api="api"
     :auth="auth"

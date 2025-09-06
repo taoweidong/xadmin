@@ -1,34 +1,34 @@
 import { dataPermissionApi } from "@/api/system/permission";
-import { h, onMounted, reactive, ref, shallowRef } from "vue";
-import { hasAuth } from "@/router/utils";
+import {
+  getCurrentInstance,
+  h,
+  onMounted,
+  reactive,
+  ref,
+  shallowRef
+} from "vue";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
 import { FieldChoices } from "@/views/system/constants";
 import { handleTree } from "@/utils/tree";
 import { modelLabelFieldApi } from "@/api/system/field";
 import { transformI18n } from "@/plugins/i18n";
 import { getKeyList } from "@pureadmin/utils";
-import type { OperationProps, RePlusPageProps } from "@/components/RePlusCRUD";
-import filterForm from "../filter/index.vue";
+import type { OperationProps, RePlusPageProps } from "@/components/RePlusPage";
+import filterForm from "../components/index.vue";
+import { formatFiledAppParent } from "@/views/system/hooks";
 
 export function useDataPermission() {
   const fieldLookupsData = ref([]);
   const valuesData = ref([]);
 
   const api = reactive(dataPermissionApi);
-  api.update = api.patch;
 
   const auth = reactive({
-    list: hasAuth("list:systemDataPermission"),
-    create: hasAuth("create:systemDataPermission"),
-    delete: hasAuth("delete:systemDataPermission"),
-    update: hasAuth("update:systemDataPermission"),
-    detail: hasAuth("detail:systemDataPermission"),
-    export: hasAuth("export:systemDataPermission"),
-    import: hasAuth("import:systemDataPermission"),
-    batchDelete: hasAuth("batchDelete:systemDataPermission")
+    ...getDefaultAuths(getCurrentInstance())
   });
 
   onMounted(() => {
-    if (hasAuth("list:systemModelField")) {
+    if (hasAuth("list:SystemModelLabelField")) {
       modelLabelFieldApi
         .list({
           page: 1,
@@ -37,6 +37,7 @@ export function useDataPermission() {
         })
         .then(res => {
           if (res.code === 1000) {
+            formatFiledAppParent(res.data.results);
             fieldLookupsData.value = handleTree(res.data.results);
           }
         });
@@ -98,7 +99,7 @@ export function useDataPermission() {
           column["renderField"] = (value, onChange) => {
             return h(filterForm, {
               class: ["overflow-auto"],
-              dataList: value,
+              dataList: value as any,
               valuesData: valuesData.value,
               ruleList: fieldLookupsData.value,
               onChange

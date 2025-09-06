@@ -12,7 +12,7 @@ class NoticeApi extends BaseApi {
   };
   publish = (pk: number | string, data?: object) => {
     return this.request<BaseResult>(
-      "put",
+      "patch",
       {},
       data,
       `${this.baseApi}/${pk}/publish`
@@ -20,13 +20,13 @@ class NoticeApi extends BaseApi {
   };
 }
 
-export const noticeApi = new NoticeApi("/api/system/message/notice");
+export const noticeApi = new NoticeApi("/api/notifications/notice-messages");
 
 // 用户已读公告查询
 class NoticeReadApi extends BaseApi {
   state = (pk: number | string, data?: object) => {
     return this.request<BaseResult>(
-      "put",
+      "patch",
       {},
       data,
       `${this.baseApi}/${pk}/state`
@@ -34,4 +34,6 @@ class NoticeReadApi extends BaseApi {
   };
 }
 
-export const noticeReadApi = new NoticeReadApi("/api/system/message/read");
+export const noticeReadApi = new NoticeReadApi(
+  "/api/notifications/user-read-messages"
+);

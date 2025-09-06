@@ -1,9 +1,8 @@
 <script lang="ts" setup>
 import { useMenu } from "./utils/hook";
 
-import tree from "./tree.vue";
-import edit from "./edit.vue";
-import { cloneDeep } from "lodash-es";
+import tree from "./components/tree.vue";
+import edit from "./components/edit.vue";
 
 defineOptions({
   name: "SystemMenu"
@@ -13,6 +12,7 @@ const {
   auth,
   treeData,
   menuData,
+  viewList,
   modelList,
   parentIds,
   choicesDict,
@@ -26,7 +26,8 @@ const {
   getMenuData,
   handleDelete,
   handleConfirm,
-  handleManyDelete
+  handleManyDelete,
+  handleAddPermissions
 } = useMenu();
 </script>
 
@@ -47,6 +48,7 @@ const {
           @handleDelete="handleDelete"
           @handleDrag="handleDrag"
           @handleManyDelete="handleManyDelete"
+          @handleAddPermissions="handleAddPermissions"
           @importData="importData"
           @openDialog="openDialog"
         />
@@ -61,6 +63,7 @@ const {
             :menu-url-list="menuUrlList"
             :method-choices="choicesDict['method']"
             :model-list="modelList"
+            :view-list="viewList"
             :tree-data="treeData"
             class="pt-10 pb-20"
             @handleConfirm="handleConfirm"

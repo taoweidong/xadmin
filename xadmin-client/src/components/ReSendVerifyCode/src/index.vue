@@ -1,21 +1,17 @@
 <script lang="ts" setup>
-import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import Iphone from "@iconify-icons/ep/iphone";
-import Email from "@iconify-icons/ep/message";
-import { computed, reactive, ref, useSlots } from "vue";
-import type { FormInstance } from "element-plus";
-import Motion from "@/views/login/utils/motion";
-import ReImageVerify from "@/components/ReImageVerify/src/index.vue";
+import { ref } from "vue";
 import { useSendVerifyCode } from "./hooks";
-import PhoneInput from "@/components/RePlusCRUD/src/components/phoneInput.vue";
+import Motion from "@/views/login/utils/motion";
+import type { FormInstance } from "element-plus";
+import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+import ReImageVerify from "@/components/ReImageVerify/src/index.vue";
+import PhoneInput from "@/components/RePlusPage/src/components/PhoneInput.vue";
+import Email from "~icons/ep/message";
+import Keyhole from "~icons/ri/shield-keyhole-line";
 
 defineOptions({ name: "ReSendVerifyCode" });
 
-interface SendVerifyProps {
-  category: string;
-}
-
-const props = withDefaults(defineProps<SendVerifyProps>(), {
+const props = withDefaults(defineProps<{ category?: string }>(), {
   category: ""
 });
 
@@ -25,8 +21,9 @@ const formData = defineModel({
 });
 
 const emit = defineEmits<{
-  (e: "configReqSuccess", ...args: any[]): void;
-  (e: "sendCodeReqSuccess", ...args: any[]): void;
+  configReqSuccess: [...args: any[]];
+  sendCodeReqSuccess: [...args: any[]];
+  configReqEnd: [...args: any[]];
 }>();
 const formDataRef = ref<FormInstance>();
 const captchaRef = ref();
@@ -75,13 +72,6 @@ const phone = ref({ code: "+86", phone: "" });
               :disabled="Boolean(formData.verify_token)"
               @change="updatePhone"
             />
-            <!--            <el-input-->
-            <!--              v-model="formData.phone"-->
-            <!--              :disabled="Boolean(formData.verify_token)"-->
-            <!--              :placeholder="t('login.phone')"-->
-            <!--              :prefix-icon="useRenderIcon(Iphone)"-->
-            <!--              clearable-->
-            <!--            />-->
           </el-form-item>
         </el-tab-pane>
         <el-tab-pane
@@ -98,6 +88,7 @@ const phone = ref({ code: "+86", phone: "" });
               clearable
               :trigger-on-focus="false"
               :fetch-suggestions="fetchSuggestions"
+              tabindex="100"
             />
           </el-form-item>
         </el-tab-pane>
@@ -113,8 +104,9 @@ const phone = ref({ code: "+86", phone: "" });
         <el-input
           v-model="formData.captcha_code"
           :placeholder="t('login.verifyCode')"
-          :prefix-icon="useRenderIcon('ri:shield-keyhole-line')"
+          :prefix-icon="useRenderIcon(Keyhole)"
           clearable
+          tabindex="100"
         >
           <template #append>
             <ReImageVerify ref="captchaRef" v-model="formData.captcha_key" />
@@ -129,10 +121,12 @@ const phone = ref({ code: "+86", phone: "" });
           <el-input
             v-model="formData.verify_code"
             :placeholder="t('login.verifyCode')"
-            :prefix-icon="useRenderIcon('ri:shield-keyhole-line')"
+            :prefix-icon="useRenderIcon(Keyhole)"
             clearable
+            tabindex="200"
           />
           <el-button
+            tabindex="100"
             :disabled="isDisabled"
             class="ml-2"
             @click="handleSendCode(null)"

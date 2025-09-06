@@ -7,11 +7,12 @@
 
 from common.utils import get_logger
 from settings.serializers.basic import BasicSettingSerializer
-from settings.views.settings import BaseSettingView
+from settings.views.settings import BaseSettingViewSet
 
-logger = get_logger(__file__)
+logger = get_logger(__name__)
 
 
-class BasicSettingView(BaseSettingView):
+class BasicSettingViewSet(BaseSettingViewSet):
+    """基本设置"""
     serializer_class = BasicSettingSerializer
     category = "basic"

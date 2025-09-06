@@ -6,12 +6,13 @@ import {
   type RouterHistory
 } from "vue-router";
 import { router } from "./index";
-import { isProxy, toRaw } from "vue";
+import { type ComponentInternalInstance, isProxy, toRaw } from "vue";
 import { useTimeoutFn } from "@vueuse/core";
 import {
   cloneDeep,
   intersection,
   isAllEmpty,
+  isObject,
   storageLocal
 } from "@pureadmin/utils";
 import { getConfig } from "@/config";
@@ -34,9 +35,7 @@ function handRank(routeInfo: any) {
   const { name, path, parentId, meta } = routeInfo;
   return isAllEmpty(parentId)
     ? isAllEmpty(meta?.rank) ||
-      (meta?.rank === 0 && name !== "Home" && path !== "/")
-      ? true
-      : false
+        (meta?.rank === 0 && name !== "Home" && path !== "/")
     : false;
 }
 
@@ -77,8 +76,6 @@ function filterChildrenTree(data: RouteComponent[]) {
 function isOneOfArray(a: Array<string>, b: Array<string>) {
   return Array.isArray(a) && Array.isArray(b)
     ? intersection(a, b).length > 0
-      ? true
-      : false
     : true;
 }
 
@@ -173,6 +170,8 @@ function handleAsyncRoutes(routeList, authList) {
           const flattenRouters: any = router
             .getRoutes()
             .find(n => n.path === "/");
+          // 保持router.options.routes[0].children与path为"/"的children一致，防止数据不一致导致异常
+          flattenRouters.children = router.options.routes[0].children;
           router.addRoute(flattenRouters);
         }
       }
@@ -367,24 +366,54 @@ function getAuths(): Array<string> {
 }
 
 /** 是否有按钮级别的权限 */
-// function hasAuth(value: string | Array<string>): boolean {
-//   if (!value) return false;
-//   /** 从当前路由的`meta`字段里获取按钮级别的所有自定义`code`值 */
-//   const metaAuths = getAuths();
-//   if (!metaAuths) return false;
-//   const isAuths = isString(value)
-//     ? metaAuths.includes(value)
-//     : isIncludeAllChildren(value, metaAuths);
-//   return isAuths ? true : false;
-// }
-
-/** 是否有按钮级别的权限 */
 function hasAuth(value: string): boolean {
   if (!value) return false;
   /** 从当前路由的`meta`字段里获取按钮级别的所有自定义`code`值 */
   const permissionAuths = usePermissionStoreHook().permissionAuths;
   if (!permissionAuths) return false;
   return permissionAuths[value];
+}
+
+type Auths = {
+  [key: string]: boolean;
+  list?: boolean;
+  create?: boolean;
+  update?: boolean;
+  upload?: boolean;
+  destroy?: boolean;
+  retrieve?: boolean;
+  exportData?: boolean;
+  importData?: boolean;
+  batchDestroy?: boolean;
+  partialUpdate?: boolean;
+};
+
+function getDefaultAuths(
+  suffix: ComponentInternalInstance | string,
+  auth: string[] = []
+): Auths {
+  if (isObject(suffix)) {
+    suffix = suffix?.type?.name;
+  }
+  const actions = [
+    "list",
+    "create",
+    "update",
+    "upload",
+    "destroy",
+    "retrieve",
+    "exportData",
+    "importData",
+    "batchDestroy",
+    "partialUpdate",
+    ...auth
+  ];
+  const auths = {};
+  actions.forEach(key => {
+    auths[key] = hasAuth(`${key}:${suffix}`);
+  });
+
+  return auths;
 }
 
 /** 获取所有菜单中的第一个菜单（顶级菜单）*/
@@ -412,6 +441,7 @@ function getTopMenu(tag = false): menuType {
 }
 
 export {
+  type Auths,
   hasAuth,
   getAuths,
   ascending,
@@ -423,6 +453,7 @@ export {
   getHistoryMode,
   addAsyncRoutes,
   getParentPaths,
+  getDefaultAuths,
   findRouteByPath,
   handleAliveRoute,
   formatTwoStageRoutes,

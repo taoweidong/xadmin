@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import { deviceDetection } from "@pureadmin/utils";
-import uploadLine from "@iconify-icons/ri/upload-line";
+import uploadLine from "~icons/ri/upload-line";
 import { PlusForm } from "plus-pro-components";
 import { formRules } from "../utils/rule";
 import { useUserProfileForm } from "../utils/hook";
@@ -44,7 +44,12 @@ const {
     >
       <template #plus-field-avatar>
         <el-avatar :size="80" :src="userinfoStore.avatar ?? avatar" />
-        <el-button class="ml-4" plain @click="handleUpload(userInfo)">
+        <el-button
+          v-if="auth.upload"
+          class="ml-4"
+          plain
+          @click="handleUpload(userInfo)"
+        >
           <IconifyIconOffline :icon="uploadLine" />
           <span class="ml-2">{{ t("userinfo.updateAvatar") }}</span>
         </el-button>
@@ -52,7 +57,7 @@ const {
       <template #plus-field-operation>
         <div class="mt-3">
           <el-popconfirm
-            v-if="auth.update"
+            v-if="auth.partialUpdate"
             :title="t('buttons.confirmUpdate')"
             @confirm="handleUpdate(userInfo)"
           >

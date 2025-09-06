@@ -14,11 +14,11 @@ from common.swagger.utils import get_default_response_schema
 from settings.utils.password import get_password_check_rules
 
 
-class PasswordRulesView(GenericAPIView):
+class PasswordRulesAPIView(GenericAPIView):
+    """密码规则配置信息"""
     permission_classes = []
 
     @extend_schema(
-        description="密码规则配置信息",
         responses=get_default_response_schema(
             {
                 'data': build_object_type(
@@ -37,4 +37,5 @@ class PasswordRulesView(GenericAPIView):
         )
     )
     def get(self, request):
+        """获取密码规则配置"""
         return ApiResponse(data={"password_rules": get_password_check_rules(request.user)})

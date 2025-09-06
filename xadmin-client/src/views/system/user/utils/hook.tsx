@@ -3,7 +3,16 @@ import { message } from "@/utils/message";
 import { zxcvbn } from "@zxcvbn-ts/core";
 import { userApi } from "@/api/system/user";
 import { ElForm, ElFormItem, ElImage, ElInput, ElProgress } from "element-plus";
-import { h, onMounted, reactive, ref, type Ref, shallowRef, watch } from "vue";
+import {
+  getCurrentInstance,
+  h,
+  onMounted,
+  reactive,
+  ref,
+  type Ref,
+  shallowRef,
+  watch
+} from "vue";
 import { addDialog } from "@/components/ReDialog";
 import croppingUpload from "@/components/RePictureUpload";
 import { roleApi } from "@/api/system/role";
@@ -15,7 +24,7 @@ import {
   isPhone
 } from "@pureadmin/utils";
 import { useRouter } from "vue-router";
-import { hasAuth } from "@/router/utils";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
 import { useI18n } from "vue-i18n";
 import { handleTree } from "@/utils/tree";
 import { deptApi } from "@/api/system/dept";
@@ -23,19 +32,21 @@ import { dataPermissionApi } from "@/api/system/permission";
 import { customRolePermissionOptions, picturePng } from "@/views/system/hooks";
 import { AesEncrypted } from "@/utils/aes";
 import {
-  type CRUDColumn,
   handleOperation,
-  openFormDialog,
+  openDialogDrawer,
   type OperationProps,
   renderSwitch,
   type RePlusPageProps,
-  usePublicHooks
-} from "@/components/RePlusCRUD";
+  usePublicHooks,
+  type PageTableColumn
+} from "@/components/RePlusPage";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import Role from "@iconify-icons/ri/admin-line";
-import Avatar from "@iconify-icons/ri/user-3-fill";
-import Password from "@iconify-icons/ri/lock-password-line";
-import Message from "@iconify-icons/ri/message-fill";
+import Role from "~icons/ri/admin-line";
+import Avatar from "~icons/ri/user-3-fill";
+import Password from "~icons/ri/lock-password-line";
+import Message from "~icons/ri/message-fill";
+import Logout from "~icons/ri/logout-circle-r-line";
+
 import { rulesPasswordApi } from "@/api/auth";
 import { passwordRulesCheck } from "@/utils";
 
@@ -43,23 +54,19 @@ export function useUser(tableRef: Ref) {
   const { t } = useI18n();
 
   const api = reactive(userApi);
-  api.update = api.patch;
 
   const auth = reactive({
-    list: hasAuth("list:systemUser"),
-    create: hasAuth("create:systemUser"),
-    delete: hasAuth("delete:systemUser"),
-    update: hasAuth("update:systemUser"),
-    reset: hasAuth("reset:systemUser"),
-    empower: hasAuth("empower:systemUser"),
-    upload: hasAuth("upload:systemUser"),
-    choices: hasAuth("choices:systemUser"),
-    export: hasAuth("export:systemUser"),
-    import: hasAuth("import:systemUser"),
-    unBlock: hasAuth("unBlock:systemUser"),
-    batchDelete: hasAuth("batchDelete:systemUser")
+    unblock: false,
+    empower: false,
+    logout: false,
+    resetPassword: false,
+    ...getDefaultAuths(getCurrentInstance(), [
+      "resetPassword",
+      "empower",
+      "logout",
+      "unblock"
+    ])
   });
-
   const cropRef = ref();
   const router = useRouter();
   const treeData = ref([]);
@@ -143,7 +150,7 @@ export function useUser(tableRef: Ref) {
   }
 
   function onTreeSelect({ pk, selected }) {
-    tableRef.value.handleGetData({ dept: selected ? pk : "" });
+    tableRef.value.handleGetData({ dept: selected ? pk : "", page: 1 });
   }
 
   /** 重置密码 */
@@ -187,7 +194,7 @@ export function useUser(tableRef: Ref) {
               />
             </ElFormItem>
           </ElForm>
-          <div class="mt-4 flex">
+          <div class="my-4 flex">
             {pwdProgress.map(({ color, text }, idx) => (
               <div
                 class="w-[19vw]"
@@ -218,7 +225,7 @@ export function useUser(tableRef: Ref) {
         ruleFormRef.value.validate(valid => {
           if (valid) {
             api
-              .reset(row.pk, {
+              .resetPassword(row.pk, {
                 password: AesEncrypted(row.username, pwdForm.newPwd)
               })
               .then(res => {
@@ -239,14 +246,14 @@ export function useUser(tableRef: Ref) {
 
   onMounted(() => {
     if (auth.empower) {
-      if (hasAuth("list:systemRole")) {
+      if (hasAuth("list:SystemRole")) {
         roleApi.list({ page: 1, size: 1000 }).then(res => {
           if (res.code === 1000 && res.data) {
             rolesOptions.value = res.data.results;
           }
         });
       }
-      if (hasAuth("list:systemDataPermission")) {
+      if (hasAuth("list:SystemDataPermission")) {
         dataPermissionApi
           .list({
             page: 1,
@@ -260,7 +267,7 @@ export function useUser(tableRef: Ref) {
       }
     }
     // 部门列表
-    if (hasAuth("list:systemDept")) {
+    if (hasAuth("list:SystemDept")) {
       deptApi.list({ page: 1, size: 1000 }).then(res => {
         if (res.code === 1000 && res.data) {
           treeData.value = handleTree(res.data.results);
@@ -281,7 +288,7 @@ export function useUser(tableRef: Ref) {
     selectedNum.value = manySelectData.value.length ?? 0;
   };
 
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "avatar":
@@ -309,11 +316,11 @@ export function useUser(tableRef: Ref) {
         case "block":
           column["cellRenderer"] = renderSwitch({
             t,
-            updateApi: api.unBlock,
+            updateApi: api.unblock,
             switchLoadMap,
             switchStyle,
             field: column.prop,
-            disabled: row => !auth.unBlock || !row.block
+            disabled: row => !auth.unblock || !row.block
           });
           break;
       }
@@ -447,7 +454,7 @@ export function useUser(tableRef: Ref) {
   };
 
   function handleRoleRules(row: any) {
-    openFormDialog({
+    openDialogDrawer({
       t,
       isAdd: false,
       title: t("systemUser.assignRole", { user: row.username }),
@@ -490,15 +497,39 @@ export function useUser(tableRef: Ref) {
           goNotice();
         },
         show: () => {
-          return Boolean(hasAuth("create:systemNotice") && selectedNum.value);
+          return Boolean(hasAuth("create:SystemNotice") && selectedNum.value);
         }
       }
     ]
   });
 
   const operationButtonsProps = shallowRef<OperationProps>({
-    width: 260,
+    width: 210,
     buttons: [
+      {
+        text: t("systemUser.logout"),
+        code: "logout",
+        props: (row, button) => {
+          const disabled = row?.online_count === 0;
+          return {
+            ...(button?._?.props ?? {
+              icon: useRenderIcon(Logout),
+              link: true
+            }),
+            ...{ disabled, type: disabled ? "default" : "danger" }
+          };
+        },
+        onClick: ({ row }) => {
+          handleOperation({
+            t,
+            apiReq: api.logout(row.pk, {}),
+            success() {
+              tableRef.value.handleGetData();
+            }
+          });
+        },
+        show: auth.logout
+      },
       {
         text: t("systemUser.editAvatar"),
         code: "upload",
@@ -515,7 +546,7 @@ export function useUser(tableRef: Ref) {
       },
       {
         text: t("systemUser.resetPassword"),
-        code: "reset",
+        code: "resetPassword",
         props: {
           type: "primary",
           icon: useRenderIcon(Password),
@@ -524,7 +555,7 @@ export function useUser(tableRef: Ref) {
         onClick: ({ row }) => {
           handleReset(row);
         },
-        show: auth.reset
+        show: auth.resetPassword
       },
       {
         text: t("systemUser.assignRoles"),

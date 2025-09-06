@@ -2,10 +2,10 @@
 import { IconJson } from "@/components/ReIcon/data";
 import { cloneDeep, isAllEmpty } from "@pureadmin/utils";
 import { ref, computed, CSSProperties, watch } from "vue";
-import Search from "@iconify-icons/ri/search-eye-line";
+import Search from "~icons/ri/search-eye-line";
 import { useI18n } from "vue-i18n";
 
-type ParameterCSSProperties = (item?: string) => CSSProperties | undefined;
+type ParameterCSSProperties = (_item?: string) => CSSProperties | undefined;
 
 defineOptions({
   name: "IconSelect"
@@ -70,7 +70,7 @@ function setVal() {
 }
 
 function onBeforeEnter() {
-  if (isAllEmpty(icon.value)) return;
+  if (isAllEmpty(icon.value) || isAllEmpty(inputValue.value)) return;
   setVal();
   // 寻找当前图标在第几页
   const curIconIndex = copyIconList[currentActiveType.value].findIndex(
@@ -159,7 +159,7 @@ watch(
               :name="pane.name"
             >
               <el-scrollbar height="220px">
-                <ul class="flex flex-wrap px-2 ml-2">
+                <ul class="flex flex-wrap px-2! ml-2!">
                   <li
                     v-for="(item, key) in pageList"
                     :key="key"
@@ -199,7 +199,7 @@ watch(
               @current-change="onCurrentChange"
             />
             <el-button
-              class="justify-end mr-2 ml-2"
+              class="justify-end mx-2!"
               type="danger"
               size="small"
               text
@@ -220,8 +220,8 @@ watch(
   &:hover {
     color: var(--el-color-primary);
     border-color: var(--el-color-primary);
-    transition: all 0.4s;
     transform: scaleX(1.05);
+    transition: all 0.4s;
   }
 }
 

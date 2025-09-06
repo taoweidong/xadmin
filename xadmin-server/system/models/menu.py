@@ -18,7 +18,7 @@ class MenuMeta(DbAuditModel, DbUuidModel):
                                   help_text=_("Additional icon to the right of menu name"))
     is_show_menu = models.BooleanField(verbose_name=_("Show menu"), default=True)
     is_show_parent = models.BooleanField(verbose_name=_("Show parent menu"), default=False)
-    is_keepalive = models.BooleanField(verbose_name=_("Keepalive"), default=False,
+    is_keepalive = models.BooleanField(verbose_name=_("Keepalive"), default=True,
                                        help_text=_(
                                            "When enabled, the entire state of the page is saved, and when refreshed, the state is cleared"))
     frame_url = models.CharField(verbose_name=_("Iframe URL"), max_length=255, null=True, blank=True,
@@ -67,7 +67,7 @@ class Menu(DbAuditModel, DbUuidModel):
     component = models.CharField(verbose_name=_("Component path"), max_length=255, null=True, blank=True)
     is_active = models.BooleanField(verbose_name=_("Is active"), default=True)
     meta = models.OneToOneField("system.MenuMeta", on_delete=models.CASCADE, verbose_name=_("Menu meta"))
-    model = models.ManyToManyField("system.ModelLabelField", verbose_name=_("Model"), null=True, blank=True)
+    model = models.ManyToManyField("system.ModelLabelField", verbose_name=_("Model"), blank=True)
 
     # permission_marking = models.CharField(verbose_name="权限标识", max_length=255)
     # api_route = models.CharField(verbose_name="后端权限路由", max_length=255, null=True, blank=True)

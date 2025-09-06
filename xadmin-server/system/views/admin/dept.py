@@ -4,18 +4,17 @@
 # filename : dept
 # author : ly_13
 # date : 6/16/2023
-import logging
-
 from django_filters import rest_framework as filters
 
 from common.core.filter import BaseFilterSet
 from common.core.modelset import BaseModelSet, ImportExportDataAction
 from common.core.pagination import DynamicPageNumber
+from common.utils import get_logger
 from system.models import DeptInfo
 from system.serializers.department import DeptSerializer
 from system.utils.modelset import ChangeRolePermissionAction
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DeptFilter(BaseFilterSet):
@@ -27,18 +26,10 @@ class DeptFilter(BaseFilterSet):
         fields = ['pk', 'is_active', 'code', 'mode_type', 'auto_bind', 'name', 'description']
 
 
-class DeptView(BaseModelSet, ChangeRolePermissionAction, ImportExportDataAction):
-    """
-    部门信息
-    """
+class DeptViewSet(BaseModelSet, ChangeRolePermissionAction, ImportExportDataAction):
+    """部门"""
     queryset = DeptInfo.objects.all()
     serializer_class = DeptSerializer
     pagination_class = DynamicPageNumber(1000)
     ordering_fields = ['created_time', 'rank']
     filterset_class = DeptFilter
-
-    def get_queryset(self):
-        # 优化查询，使用select_related减少数据库查询
-        if self.action == 'list':
-            return self.queryset.select_related('parent')
-        return self.queryset

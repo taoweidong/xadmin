@@ -6,8 +6,7 @@ defineOptions({
   name: "SecurityLog"
 });
 
-const { t, auth, columns, loading, dataList, pagination, onSearch } =
-  useUserLoginLog();
+const { t, api, auth, pagination, listColumnsFormat } = useUserLoginLog();
 </script>
 
 <template>
@@ -18,17 +17,16 @@ const { t, auth, columns, loading, dataList, pagination, onSearch } =
     ]"
   >
     <h3 class="my-8">{{ t("account.securityLog") }}</h3>
-    <pure-table
-      v-if="auth.list"
-      :columns="columns"
-      :data="dataList"
-      :loading="loading"
+    <RePlusPage
+      ref="tableRef"
+      :api="api"
+      :auth="auth"
+      :operation="false"
+      :selection="false"
       :pagination="pagination"
-      row-key="pk"
-      table-layout="auto"
-      align-whole="center"
-      showOverflowTooltip
-      @page-current-change="onSearch"
+      :listColumnsFormat="listColumnsFormat"
+      title=""
+      locale-name="logsLogin"
     />
   </div>
 </template>

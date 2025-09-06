@@ -2,19 +2,20 @@
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Motion from "../utils/motion";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { message } from "@/utils/message";
 import { loginRules } from "../utils/rule";
 import type { FormInstance } from "element-plus";
 import { $t, transformI18n } from "@/plugins/i18n";
-import { thirdParty } from "../utils/enums";
+import { operates, thirdParty } from "../utils/enums";
 import { useUserStoreHook } from "@/store/modules/user";
 import { getTopMenu, initRouter } from "@/router/utils";
 import { ReImageVerify } from "@/components/ReImageVerify";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import Lock from "@iconify-icons/ri/lock-fill";
-import User from "@iconify-icons/ri/user-3-fill";
-import Info from "@iconify-icons/ri/information-line";
+import Lock from "~icons/ri/lock-fill";
+import User from "~icons/ri/user-3-fill";
+import Info from "~icons/ri/information-line";
+import Keyhole from "~icons/ri/shield-keyhole-line";
 import { AuthInfoResult, getTempTokenApi, loginAuthApi } from "@/api/auth";
 import { cloneDeep, debounce } from "@pureadmin/utils";
 import { useEventListener } from "@vueuse/core";
@@ -25,12 +26,14 @@ defineOptions({
 
 const router = useRouter();
 const loading = ref(false);
+const captchaRef = ref();
+const configLoading = ref(false);
 const checked = ref(true);
 const disabled = ref(false);
 const loginDay = ref(1);
 const loginDayList = ref([1]);
 const ruleFormRef = ref<FormInstance>();
-
+const route = useRoute();
 const { t } = useI18n();
 
 const authInfo = reactive<AuthInfoResult["data"]>({
@@ -88,22 +91,31 @@ const onLogin = async (formEl: FormInstance | undefined) => {
             message(transformI18n($t("login.loginSuccess")), {
               type: "success"
             });
-            initRouter().then(() => {
-              disabled.value = true;
-              router.push(getTopMenu(true).path).finally(() => {
-                disabled.value = false;
-              });
-            });
-            loading.value = false;
+            initRouter()
+              .then(() => {
+                disabled.value = true;
+                router
+                  .push(
+                    (route.query?.redirect as string) ?? getTopMenu(true).path
+                  )
+                  .finally(() => {
+                    disabled.value = false;
+                  });
+              })
+              .finally(() => (loading.value = false));
           } else {
             message(res.detail, {
               type: "warning"
             });
+            throw res.detail;
           }
+        })
+        .catch(() => {
+          initToken();
+          captchaRef.value?.getImgCode();
         })
         .finally(() => {
           loading.value = false;
-          initToken();
         });
     } else {
       loading.value = false;
@@ -125,23 +137,26 @@ function onkeypress({ code }: KeyboardEvent) {
 }
 
 onMounted(() => {
-  window.document.addEventListener("keypress", onkeypress);
-  loginAuthApi().then(res => {
-    if (res.code === 1000) {
-      Object.keys(res.data).forEach(key => {
-        authInfo[key] = res.data[key];
-      });
-      initToken();
-      loginDay.value = authInfo.lifetime;
-      formatLoginDayList();
-      useUserStoreHook().SET_ISREMEMBERED(checked.value);
-      useUserStoreHook().SET_LOGINDAY(loginDay.value);
-    }
-  });
+  window.document.addEventListener("keydown", onkeypress);
+  configLoading.value = true;
+  loginAuthApi()
+    .then(res => {
+      if (res.code === 1000) {
+        Object.keys(res.data).forEach(key => {
+          authInfo[key] = res.data[key];
+        });
+        initToken();
+        loginDay.value = authInfo.lifetime;
+        formatLoginDayList();
+        useUserStoreHook().SET_ISREMEMBERED(checked.value);
+        useUserStoreHook().SET_LOGINDAY(loginDay.value);
+      }
+    })
+    .finally(() => (configLoading.value = false));
 });
 
 onBeforeUnmount(() => {
-  useEventListener(document, "keypress", ({ code }) => {
+  useEventListener(document, "keydown", ({ code }) => {
     if (
       ["Enter", "NumpadEnter"].includes(code) &&
       !disabled.value &&
@@ -156,14 +171,10 @@ watch(checked, bool => {
 watch(loginDay, value => {
   useUserStoreHook().SET_LOGINDAY(value);
 });
-
-function onBack() {
-  useUserStoreHook().SET_CURRENT_PAGE(0);
-}
 </script>
 
 <template>
-  <div>
+  <div v-loading="configLoading">
     <el-form
       v-if="authInfo.access"
       ref="ruleFormRef"
@@ -176,6 +187,7 @@ function onBack() {
           <el-form-item prop="username">
             <el-input
               v-model="ruleForm.username"
+              tabindex="100"
               :placeholder="t('login.username')"
               :prefix-icon="useRenderIcon(User)"
               clearable
@@ -187,6 +199,7 @@ function onBack() {
           <el-form-item prop="password">
             <el-input
               v-model="ruleForm.password"
+              tabindex="100"
               :placeholder="t('login.password')"
               :prefix-icon="useRenderIcon(Lock)"
               clearable
@@ -199,12 +212,16 @@ function onBack() {
           <el-form-item prop="captcha_code">
             <el-input
               v-model="ruleForm.captcha_code"
+              tabindex="100"
               :placeholder="t('login.verifyCode')"
-              :prefix-icon="useRenderIcon('ri:shield-keyhole-line')"
+              :prefix-icon="useRenderIcon(Keyhole)"
               clearable
             >
               <template v-slot:append>
-                <ReImageVerify v-model="ruleForm.captcha_key" />
+                <ReImageVerify
+                  ref="captchaRef"
+                  v-model="ruleForm.captcha_key"
+                />
               </template>
             </el-input>
           </el-form-item>
@@ -213,7 +230,7 @@ function onBack() {
       <Motion :delay="250">
         <el-form-item>
           <div class="w-full h-[20px] flex justify-between items-center">
-            <el-checkbox v-model="checked">
+            <el-checkbox v-model="checked" tabindex="100">
               <span class="flex">
                 <select
                   v-model="loginDay"
@@ -222,7 +239,8 @@ function onBack() {
                     width: loginDay < 10 ? '10px' : '16px',
                     outline: 'none',
                     background: 'none',
-                    appearance: 'none'
+                    appearance: 'none',
+                    border: 'none'
                   }"
                 >
                   <option
@@ -255,9 +273,10 @@ function onBack() {
           <el-button
             :disabled="disabled"
             :loading="loading"
-            class="w-full mt-4"
+            class="w-full mt-4!"
             size="default"
             type="primary"
+            tabindex="100"
             @click="onLogin(ruleFormRef)"
           >
             {{ t("login.login") }}
@@ -288,11 +307,19 @@ function onBack() {
     <Motion v-else :delay="300">
       <el-result icon="error" title="当前服务器不允许登录" />
     </Motion>
-    <Motion :delay="400">
+    <Motion :delay="300">
       <el-form-item>
-        <el-button class="w-full" size="default" @click="onBack">
-          {{ t("login.back") }}
-        </el-button>
+        <div class="w-full h-[20px] flex justify-between items-center">
+          <el-button
+            v-for="(item, index) in operates"
+            :key="index"
+            class="w-full mt-4!"
+            size="default"
+            @click="useUserStoreHook().SET_CURRENT_PAGE(index + 1)"
+          >
+            {{ t(item.title) }}
+          </el-button>
+        </div>
       </el-form-item>
     </Motion>
   </div>

@@ -6,8 +6,7 @@ import { cloneDeep } from "@pureadmin/utils";
 import { responsiveStorageNameSpace, store } from "../utils";
 import { configApi } from "@/api/config";
 
-export const useSiteConfigStore = defineStore({
-  id: "pure-site-config",
+export const useSiteConfigStore = defineStore("pure-site-config", {
   state: () => ({
     config: {},
     nameSpace: responsiveStorageNameSpace()
@@ -16,6 +15,12 @@ export const useSiteConfigStore = defineStore({
     setSiteConfig(config: PlatformConfigs) {
       Object.keys(config).forEach(key => {
         Storage.set(`${this.nameSpace}${key}`, config[key]);
+      });
+    },
+    async resetSiteConfig() {
+      configApi.resetSiteConfig().then(() => {
+        message("项目配置重置成功", { type: "success" });
+        window.location.reload();
       });
     },
     async saveSiteConfig() {
@@ -45,7 +50,7 @@ export const useSiteConfigStore = defineStore({
         configApi
           .setSiteConfig(newConfig)
           .then(res => {
-            message("配置保存成功", { type: "success" });
+            message("项目配置保存成功", { type: "success" });
             resolve(res);
           })
           .catch(error => {
@@ -58,7 +63,7 @@ export const useSiteConfigStore = defineStore({
         configApi
           .getSiteConfig()
           .then(({ config }: any) => {
-            if (config.Version && config.ResponsiveStorageNameSpace) {
+            if (config.Locale) {
               this.config = config;
               const configObj = {
                 // 国际化 默认中文zh
@@ -86,7 +91,7 @@ export const useSiteConfigStore = defineStore({
                   multiTagsCache: config.MultiTagsCache ?? false,
                   stretch: config.Stretch ?? false
                 }
-              };
+              } as PlatformConfigs;
               setConfig(config);
               this.setSiteConfig(configObj);
               resolve(config);

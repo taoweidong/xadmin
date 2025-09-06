@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import { useNoticeRead } from "./hook";
-import RePlusCRUD from "@/components/RePlusCRUD";
 
 defineOptions({
   name: "SystemNoticeRead"
@@ -14,7 +13,7 @@ const { api, auth, listColumnsFormat, operationButtonsProps } =
 </script>
 
 <template>
-  <RePlusCRUD
+  <RePlusPage
     ref="tableRef"
     :api="api"
     :auth="auth"

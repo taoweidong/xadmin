@@ -21,11 +21,12 @@ from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.static import serve as static_serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from common.celery.flower import CeleryFlowerView
+from common.celery.flower import CeleryFlowerAPIView
 from common.core.utils import auto_register_app_url
 from common.utils.media import media_serve
 
 SpectacularAPIView.get = xframe_options_exempt(SpectacularAPIView.get)
+SpectacularAPIView.__doc__ = "获取API的文档模式"
 SpectacularSwaggerView.get = xframe_options_exempt(SpectacularSwaggerView.get)
 SpectacularRedocView.get = xframe_options_exempt(SpectacularRedocView.get)
 
@@ -37,10 +38,11 @@ swagger_apis = [
 
 urlpatterns = [
     re_path('^admin/', admin.site.urls),
-    re_path('^api/system/', include('system.urls')),
-    re_path('^api/settings/', include('settings.urls')),
-    re_path('^api/common/', include('common.urls')),
-    re_path('^api/flower/(?P<path>.*)$', CeleryFlowerView.as_view(), name='flower-view'),
+    re_path('^api/common/', include('common.urls', namespace='common')),
+    re_path('^api/system/', include('system.urls', namespace='system')),
+    re_path('^api/settings/', include('settings.urls', namespace='settings')),
+    re_path('^api/notifications/', include('notifications.urls', namespace='notifications')),
+    re_path('^api/flower/(?P<path>.*)$', CeleryFlowerAPIView.as_view(), name='flower-view'),
     # media路径配置 开发环境可以启动下面配置，正式环境需要让nginx读取资源，无需进行转发
     re_path('^media/(?P<path>.*)$', media_serve, {'document_root': settings.MEDIA_ROOT}),
     re_path('^api/static/(?P<path>.*)$', static_serve, {'document_root': settings.STATIC_ROOT})

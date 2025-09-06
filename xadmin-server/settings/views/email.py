@@ -13,16 +13,18 @@ from django.utils.translation import gettext_lazy as _
 from common.core.response import ApiResponse
 from common.utils import get_logger
 from settings.serializers.email import EmailSettingSerializer
-from settings.views.settings import BaseSettingView
+from settings.views.settings import BaseSettingViewSet
 
-logger = get_logger(__file__)
+logger = get_logger(__name__)
 
 
-class EmailServerSettingView(BaseSettingView):
+class EmailServerSettingViewSet(BaseSettingViewSet):
+    """邮件服务"""
     serializer_class = EmailSettingSerializer
     category = "email"
 
     def create(self, request, *args, **kwargs):
+        """测试{cls}"""
         serializer = self.get_serializer_class()(data=request.data)
         serializer.is_valid(raise_exception=True)
 

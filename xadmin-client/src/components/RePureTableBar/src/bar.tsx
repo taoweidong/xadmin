@@ -19,8 +19,8 @@ import {
   isFunction
 } from "@pureadmin/utils";
 
-import Fullscreen from "@iconify-icons/ri/fullscreen-fill";
-import ExitFullscreen from "@iconify-icons/ri/fullscreen-exit-fill";
+import Fullscreen from "~icons/ri/fullscreen-fill";
+import ExitFullscreen from "~icons/ri/fullscreen-exit-fill";
 import DragIcon from "@/assets/table-bar/drag.svg?component";
 import ExpandIcon from "@/assets/table-bar/expand.svg?component";
 import RefreshIcon from "@/assets/table-bar/refresh.svg?component";
@@ -56,7 +56,7 @@ const props = {
 export default defineComponent({
   name: "PureTableBar",
   props,
-  emits: ["refresh", "change"],
+  emits: ["refresh", "fullscreen", "change"],
   setup(props, { emit, slots, attrs }) {
     const size = ref("default");
     const loading = ref(false);
@@ -96,9 +96,9 @@ export default defineComponent({
         "text-black",
         "dark:text-white",
         "duration-100",
-        "hover:!text-primary",
+        "hover:text-primary!",
         "cursor-pointer",
-        "outline-none"
+        "outline-hidden"
       ];
     });
 
@@ -117,12 +117,12 @@ export default defineComponent({
 
     const renderClass = computed(() => {
       return [
-        "w-[99/100]",
+        "w-99/100",
         "px-2",
         "pb-2",
         "bg-bg_color",
         isFullscreen.value
-          ? ["!w-full", "!h-full", "z-[2002]", "fixed", "inset-0"]
+          ? ["w-full!", "h-full!", "z-2002", "fixed", "inset-0"]
           : "mt-2"
       ];
     });
@@ -136,6 +136,11 @@ export default defineComponent({
     function onExpand() {
       isExpandAll.value = !isExpandAll.value;
       toggleRowExpansionAll(props.tableRef.data, isExpandAll.value);
+    }
+
+    function onFullscreen() {
+      isFullscreen.value = !isFullscreen.value;
+      emit("fullscreen", isFullscreen.value);
     }
 
     function toggleRowExpansionAll(data, isExpansion) {
@@ -352,7 +357,7 @@ export default defineComponent({
               >
                 <div class={[topClass.value]}>
                   <el-checkbox
-                    class="!-mr-1"
+                    class="-mr-1!"
                     label={t("tableBar.columnDisplay")}
                     v-model={checkAll.value}
                     indeterminate={isIndeterminate.value}
@@ -382,8 +387,8 @@ export default defineComponent({
                                 class={[
                                   "drag-btn w-[16px] mr-2",
                                   isFixedColumn(item)
-                                    ? "!cursor-no-drop"
-                                    : "!cursor-grab"
+                                    ? "cursor-no-drop!"
+                                    : "cursor-grab!"
                                 ]}
                                 onMouseenter={(event: {
                                   preventDefault: () => void;
@@ -422,7 +427,7 @@ export default defineComponent({
                     ? t("tableBar.exitFullscreen")
                     : t("tableBar.fullscreen")
                 }
-                onClick={() => (isFullscreen.value = !isFullscreen.value)}
+                onClick={() => onFullscreen()}
               />
             </div>
           </div>

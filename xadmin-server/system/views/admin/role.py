@@ -4,16 +4,16 @@
 # filename : role
 # author : ly_13
 # date : 6/19/2023
-import logging
 
 from django_filters import rest_framework as filters
 
 from common.core.filter import BaseFilterSet
 from common.core.modelset import BaseModelSet, ImportExportDataAction
+from common.utils import get_logger
 from system.models import UserRole
 from system.serializers.role import RoleSerializer, ListRoleSerializer
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RoleFilter(BaseFilterSet):
@@ -25,16 +25,10 @@ class RoleFilter(BaseFilterSet):
         fields = ['name', 'code', 'is_active', 'description']
 
 
-class RoleView(BaseModelSet, ImportExportDataAction):
-    """角色管理"""
+class RoleViewSet(BaseModelSet, ImportExportDataAction):
+    """角色"""
     queryset = UserRole.objects.all()
     serializer_class = RoleSerializer
     list_serializer_class = ListRoleSerializer
     ordering_fields = ['updated_time', 'name', 'created_time']
     filterset_class = RoleFilter
-
-    def get_queryset(self):
-        # 优化查询，使用prefetch_related减少数据库查询
-        if self.action == 'list':
-            return self.queryset.prefetch_related('menu')
-        return self.queryset

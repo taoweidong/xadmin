@@ -5,16 +5,15 @@
 # author : ly_13
 # date : 7/22/2024
 
-import logging
-
 from django_filters import rest_framework as filters
 
 from common.core.filter import BaseFilterSet
 from common.core.modelset import OnlyListModelSet
+from common.utils import get_logger
 from system.models import UserRole
 from system.serializers.role import RoleSerializer
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SearchRoleFilter(BaseFilterSet):
@@ -33,8 +32,8 @@ class SearchRoleSerializer(RoleSerializer):
         read_only_fields = [x.name for x in UserRole._meta.fields]
 
 
-class SearchRoleView(OnlyListModelSet):
-    """角色管理"""
+class SearchRoleViewSet(OnlyListModelSet):
+    """角色搜索"""
     queryset = UserRole.objects.all()
     serializer_class = SearchRoleSerializer
     ordering_fields = ['updated_time', 'name', 'created_time']

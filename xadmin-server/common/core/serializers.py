@@ -5,29 +5,28 @@
 # author : ly_13
 # date : 12/21/2023
 from inspect import isfunction
+from typing import List
 
 from django.conf import settings
-from django.db import transaction
+from django.db.models import QuerySet
 from django.db.models.fields import NOT_PROVIDED
-from django.utils import timezone
-from django.utils.translation import activate
 from rest_framework.fields import empty
 from rest_framework.request import Request
 from rest_framework.serializers import ModelSerializer
 
-from common.core.config import SysConfig
-from common.core.fields import BasePrimaryKeyRelatedField
-from common.core.utils import PrintLogFormat
-from system.models import ModelLabelField
+from common.core.fields import BasePrimaryKeyRelatedField, LabeledChoiceField
+from server.utils import get_current_request
 
 
 class BaseModelSerializer(ModelSerializer):
     serializer_related_field = BasePrimaryKeyRelatedField
+    serializer_choice_field = LabeledChoiceField
     ignore_field_permission = False  # 忽略字段权限
 
     class Meta:
         model = None
         table_fields = []  # 用于控制前端table的字段展示
+        tabs = []
 
     def get_value(self, dictionary):
         # We override the default field access in order to support
@@ -37,66 +36,63 @@ class BaseModelSerializer(ModelSerializer):
         #     return html.parse_html_dict(dictionary, prefix=self.field_name) or empty
         return dictionary.get(self.field_name, empty)
 
-    def get_uniqueness_extra_kwargs(self, field_names, declared_fields, extra_kwargs):
+    def get_allow_fields(self, fields, ignore_field_permission):
         """
-        # 该方法是为了让继承BaseModelSerializer的方法，增加request传参,例如下面，为meta这个字段的序列化增加request参数
-        class MenuSerializer(BaseModelSerializer):
-            meta = MenuMetaSerializer()
+        self.fields: 默认定义的字段
+        fields: 需要展示的字段
+        allow_fields: 字段权限允许的字段
         """
-        for field_name in declared_fields:
-            if declared_fields[field_name] and isinstance(declared_fields[field_name], BaseModelSerializer):
-                obj = declared_fields[field_name]
-                declared_fields[field_name] = obj.__class__(*obj._args, **obj._kwargs, request=self.request)
+        _fields = set(self.fields)
+        if fields is None:
+            fields = _fields
 
-        extra_kwargs, hidden_fields = super().get_uniqueness_extra_kwargs(field_names, declared_fields, extra_kwargs)
-        return super().get_uniqueness_extra_kwargs(field_names, declared_fields, extra_kwargs)
+        if self.ignore_field_permission or ignore_field_permission or (
+                self.request and hasattr(self.request, "ignore_field_permission")):
+            return set(fields) & _fields
 
-    def __init__(self, instance=None, data=empty, request=None, fields=None, all_fields=False, **kwargs):
-        super().__init__(instance, data, **kwargs)
-        self.request: Request = request or self.context.get("request", None)
-        if all_fields:
-            return
-        if not fields and (self.request is None or getattr(self.request, 'all_fields', None) is not None):
-            return
-        allowed = set()
-        allowed2 = allowed1 = None
-        if fields is not None:
-            allowed1 = set(fields)
-        if self.request and SysConfig.PERMISSION_FIELD and not self.ignore_field_permission:
-            if hasattr(self.request, "fields"):
-                if self.request.fields and isinstance(self.request.fields, dict):
-                    # 优化字段权限检查，使用缓存避免重复计算
-                    cache_key = f"field_permission_{self.Meta.model._meta.label_lower}"
-                    if hasattr(self.request, '_field_permission_cache'):
-                        allowed2 = self.request._field_permission_cache.get(cache_key)
-                    else:
-                        self.request._field_permission_cache = {}
-                    
-                    if allowed2 is None:
-                        allowed2 = set(self.request.fields.get(self.Meta.model._meta.label_lower, []))
-                        self.request._field_permission_cache[cache_key] = allowed2
-
+        allow_fields = []
+        # 获取权限字段，如果没有配置，则为定义的所有字段
+        if self.request and settings.PERMISSION_FIELD_ENABLED and not self.ignore_field_permission:
             if hasattr(self.request, "user") and self.request.user and self.request.user.is_superuser:
-                allowed2 = set(self.fields)
+                allow_fields = _fields
+            elif hasattr(self.request, "fields"):
+                if self.request.fields and isinstance(self.request.fields, dict):
+                    allow_fields = self.request.fields.get(self.Meta.model._meta.label_lower, [])
         else:
-            allowed2 = set(self.fields)
+            allow_fields = _fields
 
-        if self.request and hasattr(self.request, "all_fields"):
-            allowed2 = set(self.fields)
+        return set(fields) & _fields & set(allow_fields)
 
-        if allowed2 is not None and allowed1 is not None:
-            allowed = allowed1 & allowed2
+    def __init__(self, instance=None, data=empty, fields=None, ignore_field_permission=False, **kwargs):
+        """
+        :param instance:
+        :param data:
+        :param request: Request 对象
+        :param fields: 序列化展示的字段， 默认定义的全部字段
+        :param ignore_field_permission: 忽略字段权限控制
+        """
+        super().__init__(instance, data, **kwargs)
+        meta = getattr(self, 'Meta', None)
+        if meta and hasattr(meta, 'tabs') and meta.fields != '__all__':
+            meta.fields = meta.fields + self.get_fields_from_tabs(meta.tabs)
 
-        if allowed2 and allowed1 is None:
-            allowed = allowed2
-
-        if allowed1 and allowed2 is None:
-            allowed = allowed1
-
-        # 批量移除不需要的字段，提高性能
-        fields_to_remove = set(self.fields) - allowed
-        for field_name in fields_to_remove:
+        self.request: Request = get_current_request()
+        if self.request is None:
+            return
+        allowed = self.get_allow_fields(fields, ignore_field_permission)
+        for field_name in set(self.fields) - allowed:
             self.fields.pop(field_name)
+
+    @staticmethod
+    def get_fields_from_tabs(tabs: List) -> List[str]:
+        seen = set()
+        result = []
+        for tab in tabs:
+            for field in tab.fields:
+                if field not in seen:
+                    seen.add(field)
+                    result.append(field)
+        return result
 
     def build_standard_field(self, field_name, model_field):
         field_class, field_kwargs = super().build_standard_field(field_name, model_field)
@@ -109,59 +105,57 @@ class BaseModelSerializer(ModelSerializer):
         return field_class, field_kwargs
 
     def create(self, validated_data):
-        if self.request:
-            user = self.request.user
-            if user and user.is_authenticated:
-                if hasattr(self.Meta.model, 'creator') or hasattr(self.instance, 'creator'):
-                    validated_data["creator"] = user
-                if hasattr(self.Meta.model, 'dept_belong') or hasattr(self.instance, 'dept_belong'):
-                    validated_data["dept_belong"] = user.dept
-        return super().create(validated_data)
+        n_file_objs = []
+        for field in self.Meta.model._meta.get_fields():
+            if field.is_relation and field.related_model._meta.label == "system.UploadFile":
+                if field.name in validated_data:
+                    file_data = validated_data[field.name]
+                    if isinstance(file_data, (list, QuerySet)):
+                        n_file_objs.extend(validated_data.get(field.name))
+                    else:
+                        n_file_objs.append(validated_data.get(field.name))
+
+        result = super().create(validated_data)
+
+        for n_file in n_file_objs:
+            setattr(n_file, 'is_tmp', False)
+            n_file.save(update_fields=['is_tmp'])
+        return result
 
     def update(self, instance, validated_data):
-        if self.request:
-            user = self.request.user
-            if user and user.is_authenticated:
-                if hasattr(self.instance, 'modifier'):
-                    validated_data["modifier"] = user
-        return super().update(instance, validated_data)
+        n_file_objs = []
+        d_file_objs = []
+        for field in self.Meta.model._meta.get_fields():
+            if field.is_relation and field.related_model._meta.label == "system.UploadFile":
+                if field.name in validated_data:
+                    file_data = validated_data[field.name]
+                    if isinstance(file_data, (list, QuerySet)):
+                        d_file_objs.extend(
+                            set(getattr(instance, field.name).all()) - set(validated_data.get(field.name)))
+                        n_file_objs.extend(
+                            set(validated_data.get(field.name)) - set(getattr(instance, field.name).all()))
+                    else:
+                        o_file_obj = getattr(instance, field.name)
+                        n_file_obj = validated_data.get(field.name)
+                        if o_file_obj.pk != n_file_obj.pk:
+                            d_file_objs.append(o_file_obj)
+                            n_file_objs.append(n_file_obj)
+
+        result = super().update(instance, validated_data)
+
+        for d_file in d_file_objs:
+            d_file.delete()
+        for n_file in n_file_objs:
+            setattr(n_file, 'is_tmp', False)
+            n_file.save(update_fields=['is_tmp'])
+        return result
 
 
-@transaction.atomic
-def get_sub_serializer_fields():
-    cls_list = []
-    activate(settings.PERMISSION_FIELD_LANGUAGE_CODE)
+class TabsColumn(object):
 
-    def get_all_subclass(base_cls):
-        if base_cls.__subclasses__():
-            for cls in base_cls.__subclasses__():
-                cls_list.append(cls)
-                get_all_subclass(cls)
+    def __init__(self, label: str, fields: List[str]):
+        self.label = label
+        self.fields = fields
 
-    get_all_subclass(BaseModelSerializer)
-
-    delete = False
-    now = timezone.now()
-    field_type = ModelLabelField.FieldChoices.ROLE
-    for cls in cls_list:
-        instance = cls(all_fields=True)
-        model = instance.Meta.model
-        if not model:
-            continue
-        count = [0, 0]
-
-        delete = True
-        obj, created = ModelLabelField.objects.update_or_create(name=model._meta.label_lower, field_type=field_type,
-                                                                parent=None,
-                                                                defaults={'label': model._meta.verbose_name})
-        count[int(not created)] += 1
-        for name, field in instance.fields.items():
-            _, created = ModelLabelField.objects.update_or_create(name=name, parent=obj, field_type=field_type,
-                                                                  defaults={'label': field.label})
-            count[int(not created)] += 1
-        PrintLogFormat(f"Model:({model._meta.label_lower})").warning(
-            f"update_or_create role permission, created:{count[0]} updated:{count[1]}")
-
-    if delete:
-        deleted, _rows_count = ModelLabelField.objects.filter(field_type=field_type, updated_time__lt=now).delete()
-        PrintLogFormat(f"Sync Role permission end").info(f"deleted success, deleted:{deleted} row_count {_rows_count}")
+    def __str__(self):
+        return {'label': self.label, 'fields': self.fields}

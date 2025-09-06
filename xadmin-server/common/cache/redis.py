@@ -5,16 +5,19 @@
 # author : ly_13
 # date : 6/2/2023
 import json
-import logging
 import time
 
 from django_redis import get_redis_connection
 
-logger = logging.getLogger(__name__)
+from common.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 def format_return(data):
     try:
+        if isinstance(data, bytes):
+            data = data.decode(encoding='utf-8')
         return json.loads(data)
     except:
         return data
@@ -27,12 +30,25 @@ def format_input(data):
         return data
 
 
-class CacheList(object):
+class CacheRedis(object):
 
-    def __init__(self, key, max_size=1024):
+    def __init__(self, key):
         self.connect = get_redis_connection("default")
         self.key = key
+
+    def lock(self, *args, **kwargs):
+        return self.connect.lock(f"{self.key}_locker", *args, **kwargs)
+
+    def expire(self, timeout=None):
+        return self.connect.expire(self.key, timeout)
+
+
+class CacheList(CacheRedis):
+
+    def __init__(self, key, max_size=1024, timeout=None):
+        super().__init__(key)
         self.max_size = max_size
+        self.timeout = timeout
 
     def auto_ltrim(self):
         stop = self.connect.llen(self.key)
@@ -43,6 +59,8 @@ class CacheList(object):
     def push(self, json_data, *args):
         self.connect.lpush(self.key, json.dumps(json_data), *[json.dumps(x) for x in args])
         self.auto_ltrim()
+        if self.timeout is not None:
+            self.connect.expire(self.key, self.timeout)
 
     def pop(self):
         try:
@@ -55,17 +73,17 @@ class CacheList(object):
     def delete(self):
         self.connect.delete(self.key)
 
+    def len(self):
+        return self.connect.llen(self.key)
 
-class RobotMsgCache(CacheList):
-    def __init__(self, key='', max_size=1024):
-        super().__init__(f'ai_robot_chat_msg_{key}', max_size)
+    def get_all(self):
+        return [format_return(k) for k in self.connect.lrange(self.key, 0, -1)]
 
 
-class CacheSet(object):
+class CacheSet(CacheRedis):
 
     def __init__(self, key):
-        self.connect = get_redis_connection("default")
-        self.key = key
+        super().__init__(key)
 
     def get_all(self):
         return {format_return(k) for k in self.connect.smembers(self.key)}
@@ -89,11 +107,10 @@ class CacheSet(object):
         self.connect.delete(self.key)
 
 
-class CacheSortedSet(object):
+class CacheSortedSet(CacheRedis):
 
     def __init__(self, key):
-        self.connect = get_redis_connection("default")
-        self.key = key
+        super().__init__(key)
 
     def get_all(self, with_scores=False):
         return self.get_members(0, -1, with_scores)
@@ -136,11 +153,10 @@ class CacheSortedSet(object):
         self.connect.delete(self.key)
 
 
-class CacheHash(object):
+class CacheHash(CacheRedis):
 
     def __init__(self, key):
-        self.connect = get_redis_connection("default")
-        self.key = key
+        super().__init__(key)
 
     def get_all(self):
         # return [format_return(v) for v in self.connect.hgetall(self.key).values()]

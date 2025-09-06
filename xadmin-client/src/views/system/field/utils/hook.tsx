@@ -1,9 +1,10 @@
-import { modelLabelFieldApi } from "@/api/system/field";
 import { useI18n } from "vue-i18n";
-import { hasAuth } from "@/router/utils";
-import { reactive, type Ref, shallowRef } from "vue";
-import { handleOperation, type OperationProps } from "@/components/RePlusCRUD";
+import Money from "~icons/ep/money";
+import { getDefaultAuths } from "@/router/utils";
+import { modelLabelFieldApi } from "@/api/system/field";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+import { getCurrentInstance, reactive, type Ref, shallowRef } from "vue";
+import { handleOperation, type OperationProps } from "@/components/RePlusPage";
 
 export function useModelField(tableRef: Ref) {
   const { t } = useI18n();
@@ -11,10 +12,8 @@ export function useModelField(tableRef: Ref) {
   const api = reactive(modelLabelFieldApi);
 
   const auth = reactive({
-    list: hasAuth("list:systemModelField"),
-    sync: hasAuth("sync:systemModelField"),
-    detail: hasAuth("detail:systemModelField"),
-    lookups: hasAuth("lookups:systemModelField")
+    sync: false,
+    ...getDefaultAuths(getCurrentInstance(), ["sync"])
   });
 
   const tableBarButtonsProps = shallowRef<OperationProps>({
@@ -25,7 +24,7 @@ export function useModelField(tableRef: Ref) {
         props: {
           type: "primary",
           plain: true,
-          icon: useRenderIcon("ep:money")
+          icon: useRenderIcon(Money)
         },
         onClick: ({ loading }) => {
           loading.value = true;

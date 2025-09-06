@@ -5,6 +5,7 @@
 # author : ly_13
 # date : 7/22/2024
 
+from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
 from rest_framework import serializers
 
@@ -26,18 +27,17 @@ class SearchMenuFilter(BaseFilterSet):
 
 
 class SearchMenuSerializer(MenuSerializer):
-
     class Meta:
         model = Menu
         fields = ['title', 'pk', 'rank', 'path', 'component', 'parent', 'menu_type', 'is_active', 'method']
         table_fields = ['title', 'menu_type', 'path', 'component', 'is_active', 'method']
         read_only_fields = [x.name for x in Menu._meta.fields]
 
-    title = serializers.CharField(source='meta.title', read_only=True)
+    title = serializers.CharField(source='meta.title', read_only=True, label=_("Menu title"))
 
 
-class SearchMenuView(OnlyListModelSet):
-    """菜单管理"""
+class SearchMenuViewSet(OnlyListModelSet):
+    """菜单搜索"""
     queryset = Menu.objects.order_by('rank').all()
     serializer_class = SearchMenuSerializer
     pagination_class = DynamicPageNumber(1000)

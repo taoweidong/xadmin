@@ -4,7 +4,6 @@
 # filename : user
 # author : ly_13
 # date : 8/10/2024
-import logging
 
 from django.contrib.auth.hashers import make_password
 from django.utils.translation import gettext_lazy as _
@@ -14,42 +13,52 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueValidator
 
 from common.base.utils import AESCipherV2
-from common.core.fields import BasePrimaryKeyRelatedField
+from common.core.serializers import BaseModelSerializer
 from common.fields.utils import input_wrapper
+from common.utils import get_logger
+from message.utils import get_online_user_layers
 from settings.utils.password import check_password_rules
 from settings.utils.security import LoginBlockUtil
-from system.models import DeptInfo, UserInfo
-from system.serializers.base import BaseRoleRuleInfo
+from system.models import UserInfo
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
-class UserSerializer(BaseRoleRuleInfo):
+class UserSerializer(BaseModelSerializer):
     class Meta:
         model = UserInfo
-        fields = ['pk', 'avatar', 'username', 'nickname', 'phone', 'email', 'gender', 'block', 'is_active',
-                  'password', 'dept', 'description', 'last_login', 'date_joined', 'roles', 'mode_type']
-
-        extra_kwargs = {'last_login': {'read_only': True}, 'date_joined': {'read_only': True},
-                        'pk': {'read_only': True}, 'avatar': {'read_only': True},
-                        'roles': {'read_only': True}, 'dept': {'required': True}, 'password': {'write_only': True},
-                        'email': {'validators': [UniqueValidator(queryset=UserInfo.objects.all())]},
-                        'phone': {'validators': [UniqueValidator(queryset=UserInfo.objects.all())]},
-                        }
+        fields = [
+            'pk', 'avatar', 'username', 'nickname', 'phone', 'email', 'gender', 'block', 'online_count', 'is_active',
+            'password', 'dept', 'description', 'last_login', 'date_joined', 'roles', 'rules', 'mode_type'
+        ]
         read_only_fields = ['pk'] + list(set([x.name for x in UserInfo._meta.fields]) - set(fields))
+        table_fields = [
+            'pk', 'avatar', 'username', 'nickname', 'gender', 'block', 'online_count', 'is_active', 'dept', 'phone',
+            'last_login', 'date_joined', 'roles', 'rules'
+        ]
+        extra_kwargs = {
+            'pk': {'read_only': True}, 'last_login': {'read_only': True}, 'date_joined': {'read_only': True},
+            'avatar': {'read_only': True}, 'password': {'write_only': True},
+            'roles': {'required': False, 'attrs': ['pk', 'name', 'code'], 'format': "{name}", 'many': True},
+            'rules': {'required': False, 'attrs': ['pk', 'name', 'get_mode_type_display'], 'format': "{name}",
+                      'many': True},
+            'dept': {'required': False, 'attrs': ['pk', 'name', 'parent_id'], 'format': "{name}"},
+            'email': {'validators': [UniqueValidator(queryset=UserInfo.objects.all())]},
+            'phone': {'validators': [UniqueValidator(queryset=UserInfo.objects.all())]}
+        }
 
-        table_fields = ['pk', 'avatar', 'username', 'nickname', 'gender', 'block', 'is_active', 'dept', 'phone',
-                        'last_login', 'date_joined', 'roles']
+    block = input_wrapper(serializers.SerializerMethodField)(read_only=True, input_type='boolean',
+                                                             label=_("Login blocked"))
+    online_count = input_wrapper(serializers.SerializerMethodField)(read_only=True, input_type='number',
+                                                                    label=_("Online count"))
 
-    # 使用select_related优化外键查询
-    dept = BasePrimaryKeyRelatedField(
-        queryset=DeptInfo.objects.select_related('parent').all(), 
-        allow_null=True, required=False,
-        attrs=['pk', 'name', 'parent_id'], label=_("Department"), format="{name}"
-    )
-
+    @extend_schema_field(serializers.BooleanField)
     def get_block(self, obj):
         return LoginBlockUtil.is_user_block(obj.username)
+
+    @extend_schema_field(serializers.IntegerField)
+    def get_online_count(self, obj):
+        return len(get_online_user_layers(obj.pk))
 
     def validate(self, attrs):
         password = attrs.get('password')

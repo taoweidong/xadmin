@@ -1,25 +1,29 @@
-import { h, reactive, ref, type Ref, shallowRef } from "vue";
+import {
+  getCurrentInstance,
+  h,
+  reactive,
+  ref,
+  type Ref,
+  shallowRef
+} from "vue";
 import { noticeReadApi } from "@/api/system/notice";
 import { deviceDetection } from "@pureadmin/utils";
 import { addDialog } from "@/components/ReDialog";
 import { useRouter } from "vue-router";
-import { hasAuth } from "@/router/utils";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
 import { useI18n } from "vue-i18n";
-import type { CRUDColumn, OperationProps } from "@/components/RePlusCRUD";
-import { renderSwitch, usePublicHooks } from "@/components/RePlusCRUD";
-import noticeShowForm from "@/views/system/components/noticeShow.vue";
+import type { PageTableColumn, OperationProps } from "@/components/RePlusPage";
+import { renderSwitch, usePublicHooks } from "@/components/RePlusPage";
+import NoticeShowForm from "@/views/system/components/NoticeShow.vue";
+
 export function useNoticeRead(tableRef: Ref) {
   const { t } = useI18n();
 
   const api = reactive(noticeReadApi);
-  api.update = api.patch;
 
   const auth = reactive({
-    list: hasAuth("list:systemNoticeRead"),
-    detail: hasAuth("detail:systemNoticeRead"),
-    delete: hasAuth("delete:systemNoticeRead"),
-    state: hasAuth("update:systemNoticeReadState"),
-    batchDelete: hasAuth("batchDelete:systemNoticeRead")
+    state: false,
+    ...getDefaultAuths(getCurrentInstance(), ["state"])
   });
   const switchLoadMap = ref({});
   const { switchStyle } = usePublicHooks();
@@ -42,14 +46,14 @@ export function useNoticeRead(tableRef: Ref) {
             fullscreenIcon: true,
             closeOnClickModal: false,
             hideFooter: true,
-            contentRenderer: () => h(noticeShowForm)
+            contentRenderer: () => h(NoticeShowForm)
           });
         },
         update: true
       }
     ]
   });
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "notice_info":
@@ -62,10 +66,10 @@ export function useNoticeRead(tableRef: Ref) {
             </el-link>
           );
           break;
-        case "owner_info":
+        case "owner":
           column["cellRenderer"] = ({ row }) => (
             <el-link onClick={() => onGoUserDetail(row as any)}>
-              {row.owner_info?.username ? row.owner_info?.username : "/"}
+              {row.owner?.username ? row.owner?.username : "/"}
             </el-link>
           );
           break;
@@ -97,17 +101,17 @@ export function useNoticeRead(tableRef: Ref) {
   const router = useRouter();
 
   function onGoUserDetail(row: any) {
-    if (hasAuth("list:systemUser") && row.owner_info && row.owner_info?.pk) {
+    if (hasAuth("list:SystemUser") && row.owner && row.owner?.pk) {
       router.push({
         name: "SystemUser",
-        query: { pk: row.owner_info.pk }
+        query: { pk: row.owner.pk }
       });
     }
   }
 
   function onGoNoticeDetail(row: any) {
     if (
-      hasAuth("list:systemNotice") &&
+      hasAuth("list:SystemNotice") &&
       row?.notice_info &&
       row.notice_info?.pk
     ) {

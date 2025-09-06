@@ -1,38 +1,50 @@
-import { computed, h, reactive, type Ref, shallowRef } from "vue";
+import {
+  computed,
+  getCurrentInstance,
+  h,
+  reactive,
+  type Ref,
+  shallowRef
+} from "vue";
 import { noticeApi } from "@/api/system/notice";
 import { useRouter } from "vue-router";
 import { deviceDetection } from "@pureadmin/utils";
 import { addDialog } from "@/components/ReDialog";
-import { hasAuth } from "@/router/utils";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
 import { useI18n } from "vue-i18n";
 import { NoticeChoices } from "@/views/system/constants";
 import type {
-  CRUDColumn,
+  PageTableColumn,
   OperationProps,
   RePlusPageProps
-} from "@/components/RePlusCRUD";
-import noticeShowForm from "@/views/system/components/noticeShow.vue";
-import wangEditor from "@/components/RePlusCRUD/src/components/wangEditor.vue";
+} from "@/components/RePlusPage";
+import NoticeShowForm from "@/views/system/components/NoticeShow.vue";
+import WangEditor from "@/components/RePlusPage/src/components/WangEditor.vue";
 
 export function useNotice(tableRef: Ref) {
   const { t } = useI18n();
 
   const api = reactive(noticeApi);
-  api.update = api.patch;
 
   const auth = reactive({
-    list: hasAuth("list:systemNotice"),
-    create: hasAuth("create:systemNotice"),
-    delete: hasAuth("delete:systemNotice"),
-    update: hasAuth("update:systemNotice"),
-    publish: hasAuth("update:systemNoticePublish"),
-    detail: hasAuth("detail:systemNotice"),
-    batchDelete: hasAuth("batchDelete:systemNotice")
+    publish: false,
+    ...getDefaultAuths(getCurrentInstance(), ["publish"])
   });
 
   const operationButtonsProps = shallowRef<OperationProps>({
     width: 200,
     buttons: [
+      {
+        code: "update",
+        update: true, // update:true 意味着我要更新这个按钮部分信息到默认的按钮信息，只更新props这个信息
+        props: (row, button) => {
+          const disabled = row?.notice_type?.value === NoticeChoices.SYSTEM;
+          return {
+            ...(button?._?.props ?? {}), // button?._ 这个表示之前老的按钮信息
+            ...{ disabled, type: disabled ? "default" : "primary" }
+          };
+        }
+      },
       {
         code: "detail",
         onClick({ row }) {
@@ -48,14 +60,14 @@ export function useNotice(tableRef: Ref) {
             fullscreenIcon: true,
             closeOnClickModal: false,
             hideFooter: true,
-            contentRenderer: () => h(noticeShowForm)
+            contentRenderer: () => h(NoticeShowForm)
           });
         },
         update: true
       }
     ]
   });
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "title":
@@ -86,7 +98,7 @@ export function useNotice(tableRef: Ref) {
     props: {
       columns: {
         level: ({ column }) => {
-          column?.options.forEach(option => {
+          (column?.options as Array<any>).forEach(option => {
             option["fieldSlot"] = () => {
               return (
                 <el-text type={option.value?.value}> {option.label}</el-text>
@@ -103,12 +115,12 @@ export function useNotice(tableRef: Ref) {
           if (!isAdd) {
             column["fieldProps"]["disabled"] = true;
           }
-          column?.options.forEach(option => {
+          (column?.options as Array<any>).forEach(option => {
             if (option.value?.value == NoticeChoices.SYSTEM) {
               option.fieldItemProps.disabled = true;
             }
             if (option.value?.value == NoticeChoices.NOTICE) {
-              if (!hasAuth("create:systemAnnouncement")) {
+              if (!hasAuth("announcement:SystemNotice")) {
                 option.fieldItemProps.disabled = true;
               }
             }
@@ -119,7 +131,7 @@ export function useNotice(tableRef: Ref) {
           column["hideInForm"] = computed(() => {
             return !(
               formValue.value?.notice_type?.value === NoticeChoices.USER &&
-              hasAuth("list:systemSearchUser")
+              hasAuth("list:SearchUser")
             );
           });
           return column;
@@ -128,7 +140,7 @@ export function useNotice(tableRef: Ref) {
           column["hideInForm"] = computed(() => {
             return !(
               formValue.value?.notice_type?.value === NoticeChoices.DEPT &&
-              hasAuth("list:systemSearchDept")
+              hasAuth("list:SearchDept")
             );
           });
           return column;
@@ -137,7 +149,7 @@ export function useNotice(tableRef: Ref) {
           column["hideInForm"] = computed(() => {
             return !(
               formValue.value?.notice_type?.value === NoticeChoices.ROLE &&
-              hasAuth("list:systemSearchRole")
+              hasAuth("list:SearchRole")
             );
           });
           return column;
@@ -145,7 +157,7 @@ export function useNotice(tableRef: Ref) {
         message: ({ column, formValue }) => {
           column["hasLabel"] = false;
           column["renderField"] = (value, onChange) => {
-            return h(wangEditor, {
+            return h(WangEditor, {
               modelValue: value,
               onChange: ({ messages, files }) => {
                 onChange(messages);
@@ -157,7 +169,7 @@ export function useNotice(tableRef: Ref) {
         }
       },
       minWidth: "600px",
-      dialogOptions: {
+      dialogDrawerOptions: {
         top: "10vh",
         width: "60vw"
       }
@@ -166,7 +178,7 @@ export function useNotice(tableRef: Ref) {
       if (isAdd) {
         if (
           formData?.notice_type?.value === NoticeChoices.NOTICE &&
-          hasAuth("create:systemAnnouncement")
+          hasAuth("announcement:SystemNotice")
         ) {
           return api.announcement(formData);
         }
@@ -177,7 +189,7 @@ export function useNotice(tableRef: Ref) {
   const router = useRouter();
 
   function onGoNoticeReadDetail(row: any) {
-    if (hasAuth("list:systemNoticeRead") && row.pk) {
+    if (hasAuth("list:SystemNoticeRead") && row.pk) {
       router.push({
         name: "SystemNoticeRead",
         query: { notice_id: row.pk }

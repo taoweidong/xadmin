@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useModelField } from "./utils/hook";
 import { ref } from "vue";
-import RePlusCRUD from "@/components/RePlusCRUD";
 
 defineOptions({
   name: "SystemModelLabelField"
@@ -12,13 +11,13 @@ const { api, auth, tableBarButtonsProps } = useModelField(tableRef);
 </script>
 
 <template>
-  <RePlusCRUD
+  <RePlusPage
     ref="tableRef"
     :api="api"
     :auth="auth"
     :operation="false"
-    :selection="false"
     :tableBarButtonsProps="tableBarButtonsProps"
+    :plusSearchProps="{ labelWidth: 110 }"
     locale-name="modelFieldManagement"
   />
 </template>

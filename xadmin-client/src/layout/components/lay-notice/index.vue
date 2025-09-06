@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from "vue";
 import NoticeList from "./components/noticeList.vue";
-import BellIcon from "@iconify-icons/ep/bell";
+import BellIcon from "~icons/ep/bell";
 import { userNoticeReadApi } from "@/api/user/notice";
 import { TabItem } from "@/layout/components/lay-notice/data";
 import { useRouter } from "vue-router";
@@ -36,11 +36,13 @@ const getNoticeData = () => {
   });
 };
 const router = useRouter();
+const dropdownRef = ref();
 
 const goUserNotice = () => {
   router.push({
     name: "UserNotice"
   });
+  dropdownRef.value?.handleClose();
 };
 
 const handleCommand = (flag: Boolean) => {
@@ -54,24 +56,17 @@ onMounted(() => {
 });
 
 const getLabel = computed(
-  () => item =>
-    t(item.name) + (item.list.length > 0 ? `(${item.list.length})` : "")
+  () => item => t(item.name) + (item.total > 0 ? `(${item.total})` : "")
 );
 </script>
 
 <template>
   <el-dropdown
+    ref="dropdownRef"
     placement="bottom-end"
     trigger="click"
     @visibleChange="handleCommand"
   >
-    <!--    <span class="dropdown-badge navbar-bg-hover select-none">-->
-    <!--      <el-badge :max="99" :value="useUserStoreHook().noticeCount">-->
-    <!--        <span class="header-notice-icon">-->
-    <!--          <IconifyIconOffline :icon="BellIcon" />-->
-    <!--        </span>-->
-    <!--      </el-badge>-->
-    <!--    </span>-->
     <span
       :class="[
         'dropdown-badge',
@@ -123,7 +118,7 @@ const getLabel = computed(
             <el-divider />
             <el-row style="height: 30px; text-align: center">
               <el-col :span="24">
-                <el-link :underline="false" @click="goUserNotice">{{
+                <el-link underline="never" @click="goUserNotice">{{
                   t("layout.more")
                 }}</el-link>
               </el-col>

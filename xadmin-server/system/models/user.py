@@ -10,12 +10,12 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from pilkit.processors import ResizeToFill
 
-from common.core.models import upload_directory_path, DbAuditModel
+from common.core.models import upload_directory_path, DbAuditModel, AutoCleanFileMixin
 from common.fields.image import ProcessedImageField
 from system.models import ModeTypeAbstract
 
 
-class UserInfo(DbAuditModel, AbstractUser, ModeTypeAbstract):
+class UserInfo(AutoCleanFileMixin, DbAuditModel, AbstractUser, ModeTypeAbstract):
     class GenderChoices(models.IntegerChoices):
         UNKNOWN = 0, _("Unknown")
         MALE = 1, _("Male")
@@ -32,7 +32,8 @@ class UserInfo(DbAuditModel, AbstractUser, ModeTypeAbstract):
     phone = models.CharField(verbose_name=_("Phone"), max_length=16, default='', blank=True, db_index=True)
     email = models.EmailField(verbose_name=_("Email"), default='', blank=True, db_index=True)
 
-    roles = models.ManyToManyField(to="system.UserRole", verbose_name=_("Role permission"), blank=True, null=True)
+    roles = models.ManyToManyField(to="system.UserRole", verbose_name=_("Role permission"), blank=True)
+    rules = models.ManyToManyField(to="system.DataPermission", verbose_name=_("Data permission"), blank=True)
     dept = models.ForeignKey(to="system.DeptInfo", verbose_name=_("Department"), on_delete=models.PROTECT, blank=True,
                              null=True, related_query_name="dept_query")
 

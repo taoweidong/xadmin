@@ -99,8 +99,10 @@ layout:
   fixedTip: Compact page to easily find the information you need
   customization: Customization
   customTip: Minimum 1280, maximum 1600
-  saveConfig: Save Config
+  saveConfig: Save
   saveConfigTip: Save the current site configuration to the server
+  resetConfig: Reset
+  resetConfigTip: Reset to the default project configuration and reload
 
 error:
   error403: Sorry, you are not authorized to access this page
@@ -139,6 +141,10 @@ labels:
   failed: Failed
   checkColumn: CheckColumn
   dClickCopy: Double-click to copy
+  online: Online
+  offline: Offline
+  yes: Yes
+  no: No
 
 exportImport:
   import: Import
@@ -154,11 +160,18 @@ exportImport:
   uploadRuleTip: upload file not exist
   uploadTip: Drag file here or click here to upload
   downloadTip: Download { action } template
+  ignoreError: Ignore error
+
+messageNotifications:
+  messageType: Message type
+  receivers: Receivers
+  editRecipient: Edit recipient
+  editRecipientTitle: Edit { title } recipient
 
 results:
   success: Executed successfully
   failed: Execution failure
-  batchDelete: Batch deletes the { count } items
+  batchDestroy: Batch deletes the { count } items
   batchRead: Batch read the { count } items
   noSelectedData: Data not selected
   formValidationFailed: Form validation failed
@@ -198,7 +211,7 @@ buttons:
   sure: Ok
   edit: Edit
   detail: Detail
-  batchDelete: BatchDelete
+  batchDestroy: BatchDelete
   batchDeleteConfirm: Are you sure to delete { count } pieces of items in batch?
   operateConfirm: Are you sure to { action } { message } ?
   selected: "{ count } items are selected"
@@ -213,14 +226,9 @@ menus:
   sysManagement: System Manage
   systemSettings: System Settings
   basicSettings: Basic Settings
-  emailSettings: Email Settings
+  messageSettings: Message Settings
   smsSettings: SMS Settings
-  passwordSettings: Password Settings
-  registerSettings: Register Settings
-  loginSettings: Login Settings
-  verifySettings: Verify Code Settings
-  resetSettings: Reset Password Settings
-  bindSettings: Bind Settings
+  securitySettings: Security Settings
   userManagement: User Manage
   deptManagement: Department Manage
   menuManagement: Menu Manage
@@ -286,6 +294,7 @@ account:
   preference: Preference
   securityLog: Security Log
   accountManagement: Account Management
+  notifications: Notifications
   back: Back
   messagePush: Site Message Push
   messagePushTips: The announcement will be a real-time push notification in the upper right corner
@@ -317,6 +326,7 @@ systemUser:
   password: Password
   roles: Roles
   rules: Data Permissions
+  logout: Logout
 
 systemDept:
   dept: Department
@@ -343,6 +353,7 @@ systemPermission:
   addValue: Value
   addType: Mode
   addExclude: Exclude
+  addExcludeTip: Returns data that do not match the given lookup parameters.
   addMatch: Match
   rules: rules
   table: table
@@ -410,6 +421,11 @@ systemMenu:
   fixedTagTip: Whether the current menu name is fixed to the TAB and cannot be closed
   hiddenTag: Hidden Tag
   hiddenTagTip: The current menu name or custom information is prohibited from being added to the TAB
+  addPermissions: Automatic batch add permissions
+  codeSuffix: Permission identity suffix
+  codeSuffixTip: It is by default the component name. If it is empty, it will be by default the name of the back-end view, and it can be modified by yourself.
+  menuView: Back-end view name
+  skipExistingData: Skip existing data
 
 logsOperation:
   creator_id: Creator Id
@@ -523,6 +539,7 @@ login:
   login: Login
   thirdLogin: Third Login
   basicLogin: Basic Login
+  verifyCodeLogin: Verify Code Login
   qRCodeLogin: QRCode Login
   register: Register
   weChatLogin: WeChat Login
@@ -574,12 +591,23 @@ welcome:
 settingBasic:
   title: Basic Settings
 
-settingEmail:
-  title: Email Server
-  test: Email Send Test
+settingMessage:
+  mailTitle: Email Server
+  messageTitle: Message Notifications
+
+settingSecurity:
+  code: Verify Code
+  captcha: Captcha Code
+  login: Login Safe
+  limit: Login Limit
+  register: Register Safe
+  resetPassword: Reset Password
+  passwordRule: Password Rules
+  bingEmail: Bind Email
+  bindPhone: Bind Phone
+  blockIp: Block Ip
 
 settingPassword:
-  title: Password Rules
   tips: Password should be
   minLength: Min Length ｛length｝
   upperCase: Upper Case
@@ -587,27 +615,8 @@ settingPassword:
   number: Number
   specialChar: Special Char
 
-settingLogin:
-  login: Login Safe
-  limit: Login Limit
-  title: Block Ip
-
-settingRegister:
-  title: Register Safe
-
 settingSms:
   title: SMS Setting
-
-settingVerify:
-  title: Verify Code
-  captcha: Captcha Code
-
-settingReset:
-  title: Reset Password
-
-settingBind:
-  title: Bind Email
-  bindPhone: Bind Phone
 
 demoBook:
   book: Book
@@ -618,3 +627,5 @@ demoBook:
   publication_date: Publication date
   price: Price
   is_active: Active
+  pushBook: Push book
+  confirmPushBook: Are you sure to push {name} book?

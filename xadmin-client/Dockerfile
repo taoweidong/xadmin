@@ -1,20 +1,14 @@
-FROM node:22-alpine as build-stage
+FROM nineaiyu/xadmin-client-base:20250801_134813 AS stage-build
 
-WORKDIR /app
-RUN corepack enable
-RUN corepack prepare pnpm@9.7.0 --activate
-
-RUN npm config set registry https://registry.npmmirror.com
-
-COPY .npmrc package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+ARG VERSION
 
 COPY . .
+
+RUN sed -i "s@\"Version\": .*@\"Version\": \"${VERSION}\",@" public/platform-config.json  \
+    && sed -i "s@\"version\": .*@\"version\": \"${VERSION}\",@" package.json
+
 RUN pnpm build
 
-FROM nginx:stable-alpine as production-stage
-
-COPY --from=build-stage /app/dist /usr/share/nginx/html
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+FROM nginx:1.24-bullseye
+COPY --from=stage-build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf

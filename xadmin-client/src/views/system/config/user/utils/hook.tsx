@@ -1,33 +1,25 @@
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { hasAuth } from "@/router/utils";
-import { reactive, type Ref, shallowRef } from "vue";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
+import { getCurrentInstance, reactive, type Ref, shallowRef } from "vue";
 import { userConfigApi } from "@/api/system/config/user";
-
 import {
-  type CRUDColumn,
+  type PageTableColumn,
   handleOperation,
   type OperationProps,
   type RePlusPageProps
-} from "@/components/RePlusCRUD";
+} from "@/components/RePlusPage";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import CircleClose from "@iconify-icons/ep/circle-close";
+import CircleClose from "~icons/ep/circle-close";
 
 export function useUserConfig(tableRef: Ref) {
   const { t } = useI18n();
 
   const api = reactive(userConfigApi);
-  api.update = api.patch;
 
   const auth = reactive({
-    list: hasAuth("list:systemUserConfig"),
-    create: hasAuth("create:systemUserConfig"),
-    delete: hasAuth("delete:systemUserConfig"),
-    update: hasAuth("update:systemUserConfig"),
-    invalid: hasAuth("invalid:systemUserConfig"),
-    import: hasAuth("import:systemUserConfig"),
-    export: hasAuth("export:systemUserConfig"),
-    batchDelete: hasAuth("batchDelete:systemUserConfig")
+    ...getDefaultAuths(getCurrentInstance()),
+    invalid: hasAuth("invalid:UserConfig")
   });
 
   const addOrEditOptions = shallowRef<RePlusPageProps["addOrEditOptions"]>({
@@ -48,7 +40,7 @@ export function useUserConfig(tableRef: Ref) {
     }
   });
 
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "owner":
@@ -66,7 +58,7 @@ export function useUserConfig(tableRef: Ref) {
   const router = useRouter();
 
   const onGoUserDetail = (row: any) => {
-    if (hasAuth("list:systemUser") && row.owner && row.owner?.pk) {
+    if (hasAuth("list:SystemUser") && row.owner && row.owner?.pk) {
       router.push({
         name: "SystemUser",
         query: { pk: row.owner.pk }
@@ -75,7 +67,7 @@ export function useUserConfig(tableRef: Ref) {
   };
 
   const operationButtonsProps = shallowRef<OperationProps>({
-    width: 260,
+    width: 250,
     buttons: [
       {
         text: t("configUser.invalidCache"),

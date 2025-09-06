@@ -3,13 +3,16 @@ import { emitter } from "@/utils/mitt";
 import { onClickOutside } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
-import CloseIcon from "@iconify-icons/ep/close";
+import CloseIcon from "~icons/ep/close";
 import { useI18n } from "vue-i18n";
 import { useSiteConfigStoreHook } from "@/store/modules/siteConfig";
 
 const target = ref(null);
 const show = ref<Boolean>(false);
 const { t } = useI18n();
+const {
+  pkg: { version }
+} = __APP_INFO__;
 
 const iconClass = computed(() => {
   return [
@@ -18,7 +21,7 @@ const iconClass = computed(() => {
     "flex",
     "justify-center",
     "items-center",
-    "outline-none",
+    "outline-hidden",
     "rounded-[4px]",
     "cursor-pointer",
     "transition-colors",
@@ -30,7 +33,7 @@ const iconClass = computed(() => {
 
 const { onReset } = useDataThemeChange();
 
-const { saveSiteConfig } = useSiteConfigStoreHook();
+const { saveSiteConfig, resetSiteConfig } = useSiteConfigStoreHook();
 
 onClickOutside(target, (event: any) => {
   if (event.clientX > target.value.offsetLeft) return;
@@ -54,9 +57,16 @@ onBeforeUnmount(() => {
     <div class="right-panel-background" />
     <div ref="target" class="right-panel bg-bg_color">
       <div
-        class="project-configuration border-b-[1px] border-solid border-[var(--pure-border-color)]"
+        class="project-configuration border-0 border-b-[1px] border-solid border-[var(--pure-border-color)]"
       >
-        <h4 class="dark:text-white">{{ t("layout.settings") }}</h4>
+        <el-badge
+          :value="version"
+          class="item"
+          :offset="[12, 5]"
+          type="primary"
+        >
+          <h4 class="dark:text-white">{{ t("layout.settings") }}</h4>
+        </el-badge>
         <span
           v-tippy="{
             content: t('buttons.close'),
@@ -79,12 +89,12 @@ onBeforeUnmount(() => {
       </el-scrollbar>
 
       <div
-        class="flex justify-between p-3 border-t-[1px] border-solid border-[var(--pure-border-color)]"
+        class="flex justify-end p-3 border-0 border-t-[1px] border-solid border-[var(--pure-border-color)]"
       >
         <el-button
           v-tippy="{
             content: t('layout.saveConfigTip'),
-            placement: 'left-start',
+            placement: 'top-start',
             zIndex: 41000
           }"
           bg
@@ -96,8 +106,21 @@ onBeforeUnmount(() => {
         </el-button>
         <el-button
           v-tippy="{
+            content: t('layout.resetConfigTip'),
+            placement: 'top-start',
+            zIndex: 41000
+          }"
+          bg
+          text
+          type="primary"
+          @click="resetSiteConfig"
+        >
+          {{ t("layout.resetConfig") }}
+        </el-button>
+        <el-button
+          v-tippy="{
             content: t('layout.cleanOut'),
-            placement: 'left-start',
+            placement: 'top-start',
             zIndex: 41000
           }"
           bg
@@ -135,8 +158,8 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 280px;
   box-shadow: 0 0 15px 0 rgb(0 0 0 / 5%);
-  transition: all 0.25s cubic-bezier(0.7, 0.3, 0.1, 1);
   transform: translate(100%);
+  transition: all 0.25s cubic-bezier(0.7, 0.3, 0.1, 1);
 }
 
 .show {

@@ -2,20 +2,19 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Motion from "../utils/motion";
-import { useRouter } from "vue-router";
-import { operates, thirdParty } from "../utils/enums";
+import { useRoute, useRouter } from "vue-router";
 import { useUserStoreHook } from "@/store/modules/user";
 import { getTopMenu, initRouter } from "@/router/utils";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import Lock from "@iconify-icons/ri/lock-fill";
-import User from "@iconify-icons/ri/user-3-fill";
-import Info from "@iconify-icons/ri/information-line";
+import Lock from "~icons/ri/lock-fill";
+import User from "~icons/ri/user-3-fill";
+import Info from "~icons/ri/information-line";
 import { loginVerifyCodeApi } from "@/api/auth";
 import { debounce, delay } from "@pureadmin/utils";
 import { useEventListener } from "@vueuse/core";
 import ReSendVerifyCode from "@/components/ReSendVerifyCode";
 import { AesEncrypted } from "@/utils/aes";
-import { handleOperation } from "@/components/RePlusCRUD";
+import { handleOperation } from "@/components/RePlusPage";
 import { setToken } from "@/utils/auth";
 
 defineOptions({
@@ -24,12 +23,13 @@ defineOptions({
 
 const router = useRouter();
 const loading = ref(false);
+const configLoading = ref(false);
 const checked = ref(true);
 const disabled = ref(false);
 const loginDay = ref(1);
 const loginDayList = ref([1]);
 const verifyCodeRef = ref();
-
+const route = useRoute();
 const { t } = useI18n();
 
 const authInfo = ref({
@@ -82,9 +82,11 @@ const onLogin = () => {
       setToken(res.data);
       initRouter().then(() => {
         disabled.value = true;
-        router.push(getTopMenu(true).path).finally(() => {
-          disabled.value = false;
-        });
+        router
+          .push((route.query?.redirect as string) ?? getTopMenu(true).path)
+          .finally(() => {
+            disabled.value = false;
+          });
       });
     },
     requestEnd() {
@@ -103,11 +105,12 @@ function onkeypress({ code }: KeyboardEvent) {
 }
 
 onMounted(() => {
-  window.document.addEventListener("keypress", onkeypress);
+  configLoading.value = true;
+  window.document.addEventListener("keydown", onkeypress);
 });
 
 onBeforeUnmount(() => {
-  useEventListener(document, "keypress", ({ code }) => {
+  useEventListener(document, "keydown", ({ code }) => {
     if (
       ["Enter", "NumpadEnter"].includes(code) &&
       !disabled.value &&
@@ -151,15 +154,20 @@ const handleLogin = () => {
     }
   });
 };
+
+function onBack() {
+  useUserStoreHook().SET_CURRENT_PAGE(0);
+}
 </script>
 
 <template>
-  <div>
+  <div v-loading="configLoading">
     <ReSendVerifyCode
       ref="verifyCodeRef"
       v-model="formData"
       category="login"
       @configReqSuccess="configReqSuccess"
+      @configReqEnd="configLoading = false"
     >
       <el-tab-pane
         v-if="authInfo.basic"
@@ -182,6 +190,7 @@ const handleLogin = () => {
               :placeholder="t('login.username')"
               :prefix-icon="useRenderIcon(User)"
               clearable
+              tabindex="100"
             />
           </el-form-item>
           <el-form-item
@@ -200,6 +209,7 @@ const handleLogin = () => {
               :prefix-icon="useRenderIcon(Lock)"
               clearable
               show-password
+              tabindex="100"
             />
           </el-form-item>
         </Motion>
@@ -210,7 +220,7 @@ const handleLogin = () => {
       <Motion :delay="250">
         <el-form-item>
           <div class="w-full h-[20px] flex justify-between items-center">
-            <el-checkbox v-model="checked">
+            <el-checkbox v-model="checked" tabindex="800">
               <span class="flex">
                 <select
                   v-model="loginDay"
@@ -219,7 +229,8 @@ const handleLogin = () => {
                     width: loginDay < 10 ? '10px' : '16px',
                     outline: 'none',
                     background: 'none',
-                    appearance: 'none'
+                    appearance: 'none',
+                    border: 'none'
                   }"
                 >
                   <option
@@ -252,52 +263,25 @@ const handleLogin = () => {
           <el-button
             :disabled="disabled"
             :loading="loading"
-            class="w-full mt-4"
+            class="w-full mt-4!"
             size="default"
             type="primary"
+            tabindex="1000"
             @click="handleLogin"
           >
             {{ t("login.login") }}
           </el-button>
         </el-form-item>
       </Motion>
-      <Motion :delay="350">
-        <el-form-item>
-          <el-divider>
-            <p class="text-gray-500 text-xs">{{ t("login.thirdLogin") }}</p>
-          </el-divider>
-          <div class="w-full flex justify-evenly">
-            <span
-              v-for="(item, index) in thirdParty"
-              :key="index"
-              :title="t(item.title)"
-            >
-              <IconifyIconOnline
-                :icon="`ri:${item.icon}-fill`"
-                class="cursor-pointer text-gray-500 hover:text-blue-400"
-                width="20"
-              />
-            </span>
-          </div>
-        </el-form-item>
-      </Motion>
     </el-form>
     <Motion v-else :delay="300">
       <el-result icon="error" title="当前服务器不允许登录" />
     </Motion>
-    <Motion :delay="300">
+    <Motion :delay="400">
       <el-form-item>
-        <div class="w-full h-[20px] flex justify-between items-center">
-          <el-button
-            v-for="(item, index) in operates"
-            :key="index"
-            class="w-full mt-4"
-            size="default"
-            @click="useUserStoreHook().SET_CURRENT_PAGE(index + 1)"
-          >
-            {{ t(item.title) }}
-          </el-button>
-        </div>
+        <el-button class="w-full" size="default" tabindex="100" @click="onBack">
+          {{ t("login.back") }}
+        </el-button>
       </el-form-item>
     </Motion>
   </div>

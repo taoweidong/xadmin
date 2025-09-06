@@ -1,41 +1,32 @@
-import menuFieldForm from "../form.vue";
+import menuFieldForm from "../components/form.vue";
 
-import { h, onMounted, reactive, ref, shallowRef } from "vue";
+import {
+  getCurrentInstance,
+  h,
+  onMounted,
+  reactive,
+  ref,
+  shallowRef
+} from "vue";
 import { roleApi } from "@/api/system/role";
 import { handleTree } from "@/utils/tree";
 import { menuApi } from "@/api/system/menu";
-import { hasAuth } from "@/router/utils";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
 import { FieldChoices } from "@/views/system/constants";
 import { cloneDeep, getKeyList } from "@pureadmin/utils";
 import { modelLabelFieldApi } from "@/api/system/field";
 import type {
-  CRUDColumn,
+  PageTableColumn,
   OperationProps,
   RePlusPageProps
-} from "@/components/RePlusCRUD";
-
-export function useApiAuth() {
-  const api = reactive(roleApi);
-  api.update = api.patch;
-
-  const auth = reactive({
-    list: hasAuth("list:systemRole"),
-    create: hasAuth("create:systemRole"),
-    delete: hasAuth("delete:systemRole"),
-    update: hasAuth("update:systemRole"),
-    export: hasAuth("export:systemRole"),
-    import: hasAuth("import:systemRole"),
-    detail: hasAuth("detail:systemRole"),
-    batchDelete: hasAuth("batchDelete:systemRole")
-  });
-  return {
-    api,
-    auth
-  };
-}
+} from "@/components/RePlusPage";
 
 export function useRole() {
-  const { api, auth } = useApiAuth();
+  const api = reactive(roleApi);
+
+  const auth = reactive({
+    ...getDefaultAuths(getCurrentInstance())
+  });
 
   const menuTreeData = ref([]);
   const fieldLookupsData = ref({});
@@ -46,7 +37,7 @@ export function useRole() {
         if (item.model && item.model.length > 0 && !item.children) {
           item.children = [];
           item.model.forEach(m => {
-            let data = cloneDeep(fieldLookupsData.value[m?.pk ?? m]);
+            const data = cloneDeep(fieldLookupsData.value[m?.pk ?? m]);
             data.pk = `+${data.pk}`;
             data.children.forEach(x => {
               x.pk = `${item.pk}+${x.pk}`;
@@ -70,7 +61,7 @@ export function useRole() {
     menuApi.list({ page: 1, size: 1000 }).then(res => {
       setTimeout(() => {
         if (res.code === 1000) {
-          if (hasAuth("list:systemModelField")) {
+          if (hasAuth("list:SystemModelLabelField")) {
             modelLabelFieldApi
               .list({
                 page: 1,
@@ -93,7 +84,7 @@ export function useRole() {
   };
 
   onMounted(() => {
-    if (hasAuth("list:systemMenu")) {
+    if (hasAuth("list:SystemMenu")) {
       getMenuData();
     }
   });
@@ -115,8 +106,10 @@ export function useRole() {
         },
         menu: ({ column, formValue }) => {
           column["fieldProps"] = {};
-          column["renderField"] = (value, onChange) => {
+          column["renderField"] = (value: any, onChange) => {
             return h(menuFieldForm, {
+              api,
+              auth,
               pk: formValue.value?.pk,
               modelValue: value,
               field: formValue.value?.field,
@@ -131,13 +124,13 @@ export function useRole() {
         }
       },
       minWidth: "700px",
-      dialogOptions: {
+      dialogDrawerOptions: {
         width: "60vw"
       }
     }
   });
 
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     return columns;
   };
 

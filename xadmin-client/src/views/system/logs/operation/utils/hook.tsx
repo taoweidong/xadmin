@@ -1,25 +1,26 @@
-import { operationLogApi } from "@/api/system/logs/operation";
+import type {
+  PageColumn,
+  OperationProps,
+  PageTableColumn
+} from "@/components/RePlusPage";
 import { useRouter } from "vue-router";
-import { reactive, shallowRef } from "vue";
-import { hasAuth } from "@/router/utils";
-import type { CRUDColumn, OperationProps } from "@/components/RePlusCRUD";
-import VueJsonPretty from "vue-json-pretty";
 import "vue-json-pretty/lib/styles.css";
+import VueJsonPretty from "vue-json-pretty";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
+import { operationLogApi } from "@/api/system/logs/operation";
+import { getCurrentInstance, reactive, shallowRef } from "vue";
 
 export function useOperationLog() {
   const api = reactive(operationLogApi);
 
   const auth = reactive({
-    list: hasAuth("list:systemOperationLog"),
-    delete: hasAuth("delete:systemOperationLog"),
-    export: hasAuth("export:systemOperationLog"),
-    batchDelete: hasAuth("batchDelete:systemOperationLog")
+    ...getDefaultAuths(getCurrentInstance())
   });
 
   const operationButtonsProps = shallowRef<OperationProps>({
     width: 140
   });
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "creator":
@@ -42,11 +43,14 @@ export function useOperationLog() {
         case "status_code":
           column["minWidth"] = 100;
           break;
+        case "module":
+          column["minWidth"] = 200;
+          break;
       }
     });
     return columns;
   };
-  const detailColumnsFormat = (columns: CRUDColumn[]) => {
+  const detailColumnsFormat = (columns: PageColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "response_result":
@@ -75,7 +79,7 @@ export function useOperationLog() {
   const router = useRouter();
 
   function onGoDetail(row: any) {
-    if (hasAuth("list:systemUser") && row?.creator && row?.creator?.pk) {
+    if (hasAuth("list:SystemUser") && row?.creator && row?.creator?.pk) {
       router.push({
         name: "SystemUser",
         query: { pk: row.creator.pk }

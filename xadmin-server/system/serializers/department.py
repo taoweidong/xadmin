@@ -4,41 +4,44 @@
 # filename : department
 # author : ly_13
 # date : 8/10/2024
-import logging
 
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from common.core.fields import BasePrimaryKeyRelatedField
+from common.core.serializers import BaseModelSerializer
+from common.utils import get_logger
 from system.models import DeptInfo
-from system.serializers.base import BaseRoleRuleInfo
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
-class DeptSerializer(BaseRoleRuleInfo):
+class DeptSerializer(BaseModelSerializer):
     class Meta:
         model = DeptInfo
-        fields = ['pk', 'name', 'code', 'parent', 'rank', 'is_active', 'roles', 'user_count',
-                  'mode_type', 'auto_bind', 'description', 'created_time']
+        fields = [
+            'pk', 'name', 'code', 'parent', 'rank', 'is_active', 'roles', 'user_count', 'rules', 'mode_type',
+            'auto_bind', 'description', 'created_time'
+        ]
 
-        table_fields = ['name', 'pk', 'code', 'user_count', 'rank', 'mode_type', 'auto_bind', 'is_active', 'roles',
-                        'created_time']
+        table_fields = [
+            'name', 'pk', 'code', 'user_count', 'rank', 'mode_type', 'auto_bind', 'is_active', 'roles', 'rules',
+            'created_time'
+        ]
 
-        extra_kwargs = {'roles': {'read_only': True}}
+        extra_kwargs = {
+            'roles': {'required': False, 'attrs': ['pk', 'name', 'code'], 'format': "{name}", 'many': True},
+            'rules': {'required': False, 'attrs': ['pk', 'name', 'get_mode_type_display'], 'format': "{name}",
+                      'many': True},
+            'parent': {'required': False, 'attrs': ['pk', 'name', 'parent_id']},
+        }
 
     user_count = serializers.SerializerMethodField(read_only=True, label=_("User count"))
-    # 使用select_related优化外键查询
-    parent = BasePrimaryKeyRelatedField(
-        queryset=DeptInfo.objects.select_related('parent').all(), 
-        allow_null=True, required=False,
-        label=_("Superior department"), attrs=['pk', 'name', 'parent_id']
-    )
 
     def validate(self, attrs):
-        # 权限需要其他接口设置，下面参数忽略
+        # 权限需要其他接口设置，下面三个参数忽略
+        attrs.pop('rules', None)
         attrs.pop('roles', None)
         attrs.pop('mode_type', None)
         # 上级部门必须存在，否则会出现数据权限问题
@@ -49,13 +52,10 @@ class DeptSerializer(BaseRoleRuleInfo):
 
     def update(self, instance, validated_data):
         parent = validated_data.get('parent')
-        if parent and parent.pk in DeptInfo.recursion_dept_info(dept_id=instance.pk):
+        if parent and str(parent.pk) in DeptInfo.recursion_dept_info(dept_id=instance.pk):
             raise ValidationError(_("The superior department cannot be its own subordinate department"))
         return super().update(instance, validated_data)
 
     @extend_schema_field(serializers.IntegerField)
     def get_user_count(self, obj):
-        # 使用prefetch_related优化用户计数查询
-        if hasattr(obj, '_prefetched_user_count'):
-            return obj._prefetched_user_count
         return obj.userinfo_set.count()

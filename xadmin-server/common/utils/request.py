@@ -49,10 +49,13 @@ def get_request_ip(request):
     :param request:
     :return:
     """
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[-1].strip()
-        return ip
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')
+    if x_forwarded_for and x_forwarded_for[0]:
+        login_ip = x_forwarded_for[0]
+        if login_ip.count(':') == 1:
+            # format: ipv4:port (非标准格式的 X-Forwarded-For)
+            return login_ip.split(":")[0]
+        return login_ip
     ip = request.META.get('REMOTE_ADDR', '') or getattr(request, 'request_ip', None)
     return ip or 'unknown'
 
@@ -140,19 +143,19 @@ def get_verbose_name(queryset=None, view=None, model=None):
     :param view:
     :return:
     """
+    verbose_name = ''
     try:
+        if view is not None and hasattr(view, '__doc__'):
+            verbose_name = getattr(view, '__doc__')
         if queryset is not None and hasattr(queryset, 'model'):
             model = queryset.model
         elif view and hasattr(view.get_queryset(), 'model'):
             model = view.get_queryset().model
         elif view and hasattr(view.get_serializer(), 'Meta') and hasattr(view.get_serializer().Meta, 'model'):
             model = view.get_serializer().Meta.model
-        if model:
+        if model and not verbose_name:
             verbose_name = getattr(model, '_meta').verbose_name
-        else:
-            verbose_name = ""
     except Exception as e:
-        verbose_name = ""
         pass
     return model, verbose_name
 

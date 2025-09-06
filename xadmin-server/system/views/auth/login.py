@@ -24,7 +24,7 @@ from common.utils.request import get_request_ip
 from settings.utils.security import LoginBlockUtil, LoginIpBlockUtil
 from system.models import UserInfo, UserLoginLog
 from system.utils.auth import get_username_password, get_token_lifetime, check_is_block, check_token_and_captcha, \
-    save_login_log, verify_sms_email_code
+    save_login_log, verify_sms_email_code, check_different_city_login_if_need
 
 
 def login_failed(request, username):
@@ -54,18 +54,18 @@ def login_success(request, user_obj, login_type=UserLoginLog.LoginTypeChoices.US
     ipaddr = get_request_ip(request)
     login_block_util = LoginBlockUtil(user_obj.username, ipaddr)
     login_ip_block = LoginIpBlockUtil(ipaddr)
-    request.user = user_obj
-    save_login_log(request, login_type=login_type)
     login_block_util.clean_failed_count()
     login_ip_block.clean_block_if_need()
+    request.user = user_obj
+    check_different_city_login_if_need(user_obj, ipaddr)
+    save_login_log(request, login_type=login_type)
 
 
-class BasicLoginView(TokenObtainPairView):
+class BasicLoginAPIView(TokenObtainPairView):
     """用户登录"""
     throttle_classes = [LoginThrottle]
 
     @extend_schema(
-        description="用户名密码登录",
         request=OpenApiRequest(
             build_object_type(
                 properties={
@@ -92,6 +92,7 @@ class BasicLoginView(TokenObtainPairView):
         )
     )
     def post(self, request, *args, **kwargs):
+        """用户名密码登录"""
         if not settings.SECURITY_LOGIN_ACCESS_ENABLED:
             return ApiResponse(code=1001, detail=_("Login forbidden"))
 
@@ -114,7 +115,6 @@ class BasicLoginView(TokenObtainPairView):
         return ApiResponse(data=data)
 
     @extend_schema(
-        description="获取登录配置信息",
         responses=get_default_response_schema(
             {
                 'data': build_object_type(
@@ -132,6 +132,7 @@ class BasicLoginView(TokenObtainPairView):
         )
     )
     def get(self, request, *args, **kwargs):
+        """获取登录配置信息"""
         config = {
             'access': settings.SECURITY_LOGIN_ACCESS_ENABLED,
             'captcha': settings.SECURITY_LOGIN_CAPTCHA_ENABLED,
@@ -144,12 +145,11 @@ class BasicLoginView(TokenObtainPairView):
         return ApiResponse(data=config)
 
 
-class VerifyCodeLoginView(TokenObtainPairView):
-    """用户登录"""
+class VerifyCodeLoginAPIView(TokenObtainPairView):
+    """用户验证码登录"""
     throttle_classes = [LoginThrottle]
 
     @extend_schema(
-        description="验证码登录",
         request=OpenApiRequest(
             build_object_type(
                 properties={
@@ -174,6 +174,7 @@ class VerifyCodeLoginView(TokenObtainPairView):
         )
     )
     def post(self, request, *args, **kwargs):
+        """验证码登录"""
         if not settings.SECURITY_LOGIN_ACCESS_ENABLED:
             return ApiResponse(code=1001, detail=_("Login forbidden"))
         ipaddr = get_request_ip(request)

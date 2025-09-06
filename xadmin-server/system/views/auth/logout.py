@@ -7,6 +7,7 @@
 import hashlib
 import time
 
+from django.contrib.auth import logout
 from drf_spectacular.plumbing import build_object_type, build_basic_type
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiRequest
@@ -18,18 +19,15 @@ from common.core.response import ApiResponse
 from common.swagger.utils import get_default_response_schema
 
 
-class LogoutView(GenericAPIView):
+class LogoutAPIView(GenericAPIView):
     """用户登出"""
 
     @extend_schema(
-        description="用户登出",
         request=OpenApiRequest(build_object_type(properties={'refresh': build_basic_type(OpenApiTypes.STR)})),
         responses=get_default_response_schema()
     )
     def post(self, request):
-        """
-        登出账户，并且将账户的access 和 refresh token 加入黑名单
-        """
+        """用户登出"""
         auth = request.auth
         if not auth:
             return ApiResponse()
@@ -40,7 +38,8 @@ class LogoutView(GenericAPIView):
         if request.data.get('refresh'):
             try:
                 token = RefreshToken(request.data.get('refresh'))
-                token.blacklist()
+                token.blacklist()  # 登出账户，并且将账户的access 和 refresh token 加入黑名单
             except Exception as e:
                 pass
+        logout(request)
         return ApiResponse()

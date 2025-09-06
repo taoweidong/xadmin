@@ -1,7 +1,6 @@
 import abc
 import codecs
 import json
-import logging
 import re
 
 from django.utils.translation import gettext_lazy as _
@@ -11,8 +10,9 @@ from rest_framework.exceptions import ParseError, APIException
 from rest_framework.parsers import BaseParser
 
 from common.core.fields import LabeledChoiceField, BasePrimaryKeyRelatedField
+from common.utils import get_logger
 
-logger = logging.getLogger(__file__)
+logger = get_logger(__name__)
 
 
 class FileContentOverflowedError(APIException):
@@ -111,7 +111,7 @@ class BaseFileParser(BaseParser):
         if not matched:
             return v
         obj_name, obj_id = matched.groups()
-        if len(obj_id) < 36:
+        if obj_id.isdigit():
             obj_id = int(obj_id)
         return {'pk': obj_id, 'name': obj_name}
 
@@ -131,7 +131,7 @@ class BaseFileParser(BaseParser):
                 value = self.id_name_to_obj(value)
         elif isinstance(field, LabeledChoiceField):
             value = self.id_name_to_obj(value)
-            if isinstance(value, dict) and value.get('pk'):
+            if isinstance(value, dict) and 'pk' in value:
                 value = value.get('pk')
         elif isinstance(field, serializers.ListSerializer):
             value = [self.parse_value(field.child, v) for v in value]
@@ -141,9 +141,21 @@ class BaseFileParser(BaseParser):
             value = [self.parse_value(field.child_relation, v) for v in value]
         elif isinstance(field, serializers.ListField):
             value = [self.parse_value(field.child, v) for v in value]
+        elif isinstance(field, serializers.JSONField):
+            if isinstance(value, str):
+                if value.lower() in ['yes']:
+                    return True
+                elif value.lower() in ['no']:
+                    return False
+            try:
+                value = json.loads(value)
+            except:
+                pass
         elif isinstance(field, serializers.CharField):
             if not isinstance(value, str):
                 value = json.dumps(value)
+        elif isinstance(field, serializers.FileField):
+            value = None
 
         return value
 
@@ -169,6 +181,15 @@ class BaseFileParser(BaseParser):
             row_data = self.process_row_data(row_data)
             data.append(row_data)
         return data
+
+    @staticmethod
+    def pop_help_text_if_need(rows):
+        rows = list(rows)
+        if not rows:
+            return rows
+        if rows[0][0].startswith('#Help'):
+            rows.pop(0)
+        return rows
 
     def parse(self, stream, media_type=None, parser_context=None):
         assert parser_context is not None, '`parser_context` should not be `None`'
@@ -198,6 +219,7 @@ class BaseFileParser(BaseParser):
                 request.jms_context = {}
             request.jms_context['column_title_field_pairs'] = column_title_field_pairs
 
+            rows = self.pop_help_text_if_need(rows)
             data = self.generate_data(field_names, rows)
             return data
         except Exception as e:

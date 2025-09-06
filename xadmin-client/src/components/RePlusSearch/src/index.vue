@@ -2,8 +2,8 @@
 import { ref, watch } from "vue";
 import { usePlusSearch } from "./hooks";
 import { ClickOutside as vClickOutside } from "element-plus";
-import RePlusCRUD from "@/components/RePlusCRUD";
 import type { PlusSearchProps } from "./types";
+import { deviceDetection } from "@pureadmin/utils";
 
 defineOptions({
   name: "RePlusSearch"
@@ -12,6 +12,7 @@ defineOptions({
 const props = withDefaults(defineProps<PlusSearchProps>(), {
   api: undefined,
   isTree: false,
+  multiple: true,
   localeName: "",
   listColumnsFormat: undefined,
   searchColumnsFormat: undefined,
@@ -23,10 +24,10 @@ const props = withDefaults(defineProps<PlusSearchProps>(), {
   })
 });
 
-const selectValue = defineModel({ type: Array<object> });
+const selectValue = defineModel<object | object[] | string>();
 
 const emit = defineEmits<{
-  (e: "change", ...args: any[]): void;
+  change: [...args: any[]];
 }>();
 
 const selectRef = ref();
@@ -35,10 +36,12 @@ const {
   t,
   selectVisible,
   defaultPagination,
-  onClear,
   onSure,
+  onClear,
+  rowStyle,
   removeTag,
   searchComplete,
+  handleRowClick,
   handleClickOutSide,
   handleSelectionChange
 } = usePlusSearch(selectRef, tableRef, selectValue, props);
@@ -62,11 +65,10 @@ watch(
     v-click-outside="handleClickOutSide"
     :max-collapse-tags="10"
     :value-key="props.valueProps.value"
-    class="w-full"
     clearable
     collapse-tags
     collapse-tags-tooltip
-    multiple
+    :multiple="multiple"
     @clear="onClear"
     @visibleChange="val => (selectVisible = val)"
     @visible-change="
@@ -82,8 +84,14 @@ watch(
       <el-tag type="primary">{{ value?.label }}</el-tag>
     </template>
     <template #empty>
-      <div class="max-w-[1000px] min-w-[800px]">
-        <RePlusCRUD
+      <div
+        :class="[
+          'pr-4',
+          'pl-4',
+          deviceDetection() ? 'w-[100vw]' : 'w-[1200px]'
+        ]"
+      >
+        <RePlusPage
           ref="tableRef"
           :api="api"
           :isTree="isTree"
@@ -92,15 +100,18 @@ watch(
           :operation="false"
           :pagination="defaultPagination"
           :pureTableProps="{
-            adaptiveConfig: { offsetBottom: 550 }
+            adaptiveConfig: { offsetBottom: 550 },
+            rowStyle: rowStyle
           }"
           :tableBar="false"
           :locale-name="localeName"
+          :selection="multiple"
           :listColumnsFormat="listColumnsFormat"
           :baseColumnsFormat="baseColumnsFormat"
           :searchColumnsFormat="searchColumnsFormat"
           @searchComplete="searchComplete"
           @selectionChange="handleSelectionChange"
+          @rowClick="handleRowClick"
         />
       </div>
 

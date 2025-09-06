@@ -36,8 +36,7 @@ import { ElNotification } from "element-plus";
 
 const { setWatermark, clear } = useWatermark();
 
-export const useUserStore = defineStore({
-  id: "pure-user",
+export const useUserStore = defineStore("pure-user", {
   state: (): userType => ({
     // 头像
     avatar: storageLocal().getItem<UserInfo>(userKey)?.avatar ?? "",
@@ -60,7 +59,8 @@ export const useUserStore = defineStore({
     // 未读消息数量
     noticeCount: 0,
     // 消息通知websocket
-    websocket: null
+    websocket: null,
+    clear: null
   }),
   actions: {
     /** 存储用户头像 */
@@ -128,24 +128,27 @@ export const useUserStore = defineStore({
     async getUserInfo() {
       return new Promise<UserInfoResult>((resolve, reject) => {
         userInfoApi
-          .detail()
+          .retrieve()
           .then(res => {
             if (res.code === 1000) {
-              clear();
               setUserInfo(res.data);
-              nextTick(() => {
-                setWatermark(
-                  `${this.username}${this.nickname ? "-" + this.nickname : ""}`,
-                  {
-                    globalAlpha: 0.1, // 值越低越透明
-                    gradient: [
-                      { value: 0, color: "magenta" },
-                      { value: 0.5, color: "blue" },
-                      { value: 1.0, color: "red" }
-                    ]
-                  }
-                );
-              });
+              this.clear = clear;
+              if (res.config.FRONT_END_WEB_WATERMARK_ENABLED) {
+                this.clear();
+                nextTick(() => {
+                  setWatermark(
+                    `${this.username}${this.nickname ? "-" + this.nickname : ""}`,
+                    {
+                      globalAlpha: 0.1, // 值越低越透明
+                      gradient: [
+                        { value: 0, color: "magenta" },
+                        { value: 0.5, color: "blue" },
+                        { value: 1.0, color: "red" }
+                      ]
+                    }
+                  );
+                });
+              }
               resolve(res);
             } else {
               reject(res);
@@ -188,7 +191,9 @@ export const useUserStore = defineStore({
           removeToken();
           useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
           resetRouter();
-          router.push("/login");
+          this.clear();
+          window.location.reload();
+          // router.push("/login");
         });
     },
     /** 刷新`token` */
@@ -210,13 +215,19 @@ export const useUserStore = defineStore({
     },
     messageHandler() {
       const onMessage = json_data => {
-        if (json_data.time && json_data.action === "push_message") {
-          const data = JSON.parse(json_data.data);
+        if (json_data.action === "push_message") {
+          const data = json_data?.data;
           let message = data?.message;
-          switch (data.message_type) {
+          switch (data?.message_type) {
             case "notify_message":
               if (data?.notice_type?.value === 0) {
-                message = h("i", { style: "color: teal" }, data?.message);
+                const isHtml =
+                  /<(?=.*? .*?\/ ?>|br|hr|input|!--|wbr)[a-z]+.*?>|<([a-z]+).*?<\/\1>/i.test(
+                    message
+                  );
+                if (!isHtml) {
+                  message = h("i", { style: "color: teal" }, data?.message);
+                }
               }
               ElNotification({
                 title: `${data?.notice_type?.label}-${data?.title}`,
@@ -246,6 +257,9 @@ export const useUserStore = defineStore({
                   });
                 }
               });
+              break;
+            case "logout":
+              this.logOut();
               break;
             case "error":
               console.log(json_data);

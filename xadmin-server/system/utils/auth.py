@@ -4,6 +4,7 @@
 # filename : view
 # author : ly_13
 # date : 8/6/2024
+import ipaddress
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
@@ -12,12 +13,14 @@ from user_agents import parse
 
 from captcha.utils import CaptchaAuth
 from common.base.utils import AESCipherV2
+from common.utils.ip import get_ip_city
 from common.utils.request import get_request_ip, get_browser, get_os, get_request_ident
 from common.utils.token import verify_token_cache
 from common.utils.verify_code import TokenTempCache, SendAndVerifyCodeUtil
 from settings.utils.security import LoginIpBlockUtil, LoginBlockUtil
 from system.models import UserLoginLog, UserInfo
-from system.serializers.log import UserLoginLogSerializer
+from system.notifications import DifferentCityLoginMessage
+from system.serializers.log import LoginLogSerializer
 
 
 def get_token_lifetime(user_obj):
@@ -73,16 +76,21 @@ def check_is_block(username, ipaddr, ip_block=LoginIpBlockUtil, login_block=Logi
                              " again after {} minutes)").format(settings.SECURITY_LOGIN_LIMIT_TIME))
 
 
-def save_login_log(request, login_type=UserLoginLog.LoginTypeChoices.USERNAME, status=True):
+def save_login_log(request, login_type=UserLoginLog.LoginTypeChoices.USERNAME, status=True, channel_name=""):
+    login_ip = get_request_ip(request) if request else ''
+    login_ip = login_ip or '0.0.0.0'
+    login_city = get_ip_city(login_ip) or _("Unknown")
     data = {
-        'ipaddress': get_request_ip(request),
+        'ipaddress': login_ip,
+        'city': str(login_city),
         'browser': get_browser(request),
         'system': get_os(request),
+        'channel_name': channel_name or getattr(request, "channel_name", ""),
         'status': status,
         'agent': str(parse(request.META['HTTP_USER_AGENT'])),
         'login_type': login_type
     }
-    serializer = UserLoginLogSerializer(data=data, request=request, all_fields=True)
+    serializer = LoginLogSerializer(data=data, ignore_field_permission=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
 
@@ -127,3 +135,25 @@ def verify_sms_email_code(request, block_utils):
         raise APIException(detail)
 
     return query_key, target, verify_token
+
+
+def check_different_city_login_if_need(user, ipaddr):
+    if not settings.SECURITY_CHECK_DIFFERENT_CITY_LOGIN or ipaddr == 'unknown':
+        return
+
+    city_white = [_('LAN'), 'LAN']
+    is_private = ipaddress.ip_address(ipaddr).is_private
+    if is_private:
+        return
+    last_user_login = UserLoginLog.objects.exclude(
+        city__in=city_white
+    ).filter(creator=user, status=True).first()
+    if not last_user_login:
+        return
+
+    city = get_ip_city(ipaddr)
+    last_city = get_ip_city(last_user_login.ipaddress)
+    if city == last_city:
+        return
+
+    DifferentCityLoginMessage(user, ipaddr, city).publish_async()

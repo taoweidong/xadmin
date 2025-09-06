@@ -12,8 +12,8 @@ from drf_spectacular.plumbing import build_array_type, build_object_type, build_
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
-from rest_framework.generics import GenericAPIView
 
 from common.base.utils import get_choices_dict
 from common.core.response import ApiResponse
@@ -22,17 +22,15 @@ from common.swagger.utils import get_default_response_schema
 from common.utils import get_logger
 from settings.models import Setting
 from settings.serializers.sms import AlibabaSMSSettingSerializer, SMSSettingSerializer
-from settings.views.settings import BaseSettingView
+from settings.views.settings import BaseSettingViewSet
 
-logger = get_logger(__file__)
+logger = get_logger(__name__)
 
 
-class SmsSettingView(BaseSettingView):
+class SmsSettingViewSet(BaseSettingViewSet):
+    """短信配置"""
     serializer_class = SMSSettingSerializer
     category = "sms"
-
-
-class SMSBackendView(GenericAPIView):
 
     @extend_schema(parameters=None, responses=get_default_response_schema(
         {
@@ -44,11 +42,14 @@ class SMSBackendView(GenericAPIView):
             ))
         }
     ))
-    def get(self, request, *args, **kwargs):
+    @action(methods=['get'], detail=False)
+    def backends(self, request, *args, **kwargs):
+        """获取可配置短信后端"""
         return ApiResponse(data=get_choices_dict(BACKENDS.choices))
 
 
-class SmsConfigView(BaseSettingView):
+class SmsConfigViewSet(BaseSettingViewSet):
+    """短信服务"""
     serializer_class_mapper = {
         'alibaba': AlibabaSMSSettingSerializer,
     }
@@ -90,6 +91,7 @@ class SmsConfigView(BaseSettingView):
         return get_params_func(data)
 
     def create(self, request, *args, **kwargs):
+        """测试{cls}"""
         serializer = self.get_serializer_class()(data=request.data)
         serializer.is_valid(raise_exception=True)
 

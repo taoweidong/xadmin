@@ -1,16 +1,17 @@
 import type { BaseApi } from "@/api/base";
-import type { PlusColumn, RecordType } from "plus-pro-components";
-import type { PaginationProps, TableColumn } from "@pureadmin/table";
+import type { RecordType } from "plus-pro-components";
+import type { PaginationProps } from "@pureadmin/table";
 import type { ComputedRef, Ref } from "vue";
+import type { PageTableColumn } from "@/components/RePlusPage";
+import type { PageColumn } from "@/components/RePlusPage";
 
 interface PlusSearchProps {
-  api: BaseApi;
+  api: Partial<BaseApi>;
   isTree?: boolean;
+  multiple?: boolean;
   localeName?: string;
-  searchColumnsFormat?: (columns: PlusColumn[]) => PlusColumn[];
-  listColumnsFormat?: (
-    columns: PlusColumn[] | TableColumn[]
-  ) => PlusColumn[] | TableColumn[];
+  searchColumnsFormat?: (columns: PageColumn[]) => PageColumn[];
+  listColumnsFormat?: (columns: PageTableColumn[]) => PageTableColumn[];
   baseColumnsFormat?: ({
     listColumns,
     detailColumns,

@@ -5,16 +5,18 @@
 # author : ly_13
 # date : 6/2/2023
 
-import logging
+
 import time
 from functools import wraps, WRAPPER_ASSIGNMENTS
 from importlib import import_module
 
 from django.core.cache import cache
-from django.db import close_old_connections
+from django.db import close_old_connections, connection
 from django.http.response import HttpResponse
 
-logger = logging.getLogger(__name__)
+from common.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 def run_function_by_locker(timeout=60 * 5, lock_func=None):
@@ -44,7 +46,7 @@ def run_function_by_locker(timeout=60 * 5, lock_func=None):
                     res = func(*args, **kwargs)
             else:
                 res = func(*args, **kwargs)
-            logger.info(f"{new_locker_key} exec {func} finished. used time:{time.time() - start_time} result:{res}")
+            logger.debug(f"{new_locker_key} exec {func} finished. used time:{time.time() - start_time} result:{res}")
             return res
 
         return wrapper
@@ -72,7 +74,7 @@ def call_function_try_attempts(try_attempts=3, sleep_time=2, failed_callback=Non
                 if failed_callback:
                     logger.error(f'exec {func} failed and exec failed callback {failed_callback.__name__}')
                     failed_callback(*args, **kwargs, result=res)
-            logger.info(f"exec {func} finished. time:{time.time() - start_time} result:{res}")
+            logger.debug(f"exec {func} finished. time:{time.time() - start_time} result:{res}")
             return res
 
         return wrapper
@@ -126,7 +128,7 @@ def magic_call_in_times(call_time=24 * 3600, call_limit=6, key=None):
             start_time = time.time()
             try:
                 res = func(*args, **kwargs)
-                logger.info(
+                logger.debug(
                     f"exec {func} finished. time:{time.time() - start_time}  cache_key:{cache_key} result:{res}")
                 status = True
             except Exception as e:
@@ -165,7 +167,7 @@ class MagicCacheData(object):
                 n_time = time.time()
                 res = cache.get(cache_key)
                 if res:
-                    while res.get('status') != 'ok':
+                    while not res or res.get('status') != 'ok':
                         time.sleep(0.5)
                         logger.warning(
                             f'exec {func} wait. data status is not ok. cache_time:{cache_time} cache_key:{cache_key}  cache data exist result:{res}')
@@ -198,9 +200,15 @@ class MagicCacheData(object):
     @staticmethod
     def invalid_cache(key):
         cache_key = f'magic_cache_data_{key}'
-        for delete_key in cache.iter_keys(cache_key):
-            cache.delete(delete_key)
-        logger.warning(f"invalid_cache cache_key:{cache_key}")
+        count = cache.delete_pattern(cache_key)
+        logger.warning(f"invalid_cache cache_key:{cache_key} count:{count}")
+
+    @staticmethod
+    def invalid_caches(keys):
+        delete_keys = [f'magic_cache_data_{key}' for key in keys]
+        count = cache.delete_many(delete_keys)
+        logger.warning(
+            f"invalid_cache_data cache_key:{delete_keys[0]}... {len(delete_keys)} count. delete count:{count}")
 
 
 class MagicCacheResponse(object):
@@ -212,9 +220,15 @@ class MagicCacheResponse(object):
     @staticmethod
     def invalid_cache(key):
         cache_key = f'magic_cache_response_{key}'
-        for delete_key in cache.iter_keys(cache_key):
-            cache.delete(delete_key)
-        logger.warning(f"invalid_response_cache cache_key:{cache_key}")
+        count = cache.delete_pattern(cache_key)
+        logger.warning(f"invalid_response_cache cache_key:{cache_key} count:{count}")
+
+    @staticmethod
+    def invalid_caches(keys):
+        delete_keys = [f'magic_cache_response_{key}' for key in keys]
+        count = cache.delete_many(delete_keys)
+        logger.warning(
+            f"invalid_response_cache cache_key:{delete_keys[0]}... {len(delete_keys)} count. delete count:{count}")
 
     def __call__(self, func):
         this = self
@@ -260,6 +274,7 @@ class MagicCacheResponse(object):
             logger.info(f"exec {func_name} finished. cache_key:{cache_key}  cache data exist")
             content, status, headers = res['data']
             response = HttpResponse(content=content, status=status)
+            response.renderer_context = view_instance.get_renderer_context()
             for k, v in headers.values():
                 response[k] = v
         else:
@@ -268,19 +283,14 @@ class MagicCacheResponse(object):
             response.render()
 
             if not response.status_code >= 400 and not getattr(request, 'no_cache', False):
-                # django 3.0 has not .items() method, django 3.2 has not ._headers
-                if hasattr(response, '_headers'):
-                    headers = response._headers.copy()
-                else:
-                    headers = {k: (k, v) for k, v in response.items()}
                 data = (
                     response.rendered_content,
                     response.status_code,
-                    headers
+                    {k: (k, v) for k, v in response.items()}
                 )
                 res = {'c_time': n_time, 'data': data}
                 cache.set(cache_key, res, timeout)
-                logger.info(
+                logger.debug(
                     f"exec {func_name} finished. time:{time.time() - n_time}  cache_key:{cache_key} result:{res}")
 
         if not hasattr(response, '_closable_objects'):
@@ -317,6 +327,7 @@ cache_response = MagicCacheResponse
 
 
 def handle_db_connections(func):
+    @wraps(func)
     def func_wrapper(*args, **kwargs):
         close_old_connections()
         logger.info(f'{func.__name__} run before do close old connection')
@@ -327,3 +338,56 @@ def handle_db_connections(func):
         return result
 
     return func_wrapper
+
+
+def temporary_disable_signal(signal, receiver, *args, **kwargs):
+    """临时禁用信号"""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*_args, **_kwargs):
+            signal.disconnect(receiver=receiver, *args, **kwargs)
+            try:
+                return func(*_args, **_kwargs)
+            finally:
+                signal.connect(receiver=receiver, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+import functools
+
+
+def timeit(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        logger.info(f"{func.__name__} run time:{end_time - start_time}")
+        return result
+
+    return wrapper
+
+
+class SQLCounter:
+    def __init__(self):
+        self.count = 0
+
+    def __call__(self, execute, sql, params, many, context):
+        self.count += 1
+        return execute(sql, params, many, context)
+
+
+def count_sql_queries(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        sql_counter = SQLCounter()
+        with connection.execute_wrapper(sql_counter):
+            result = func(*args, **kwargs)
+        logger.info(f"{func.__name__} sql queries count: {sql_counter.count}")
+        return result
+
+    return wrapper

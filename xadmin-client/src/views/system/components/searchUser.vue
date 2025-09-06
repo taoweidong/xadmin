@@ -3,18 +3,16 @@ import { h, reactive } from "vue";
 import { hasAuth } from "@/router/utils";
 import { searchUserApi } from "@/api/system/search";
 import RePlusSearch from "@/components/RePlusSearch";
-import { cloneDeep } from "@pureadmin/utils";
-import { customRolePermissionOptions } from "@/views/system/hooks";
-import type { CRUDColumn } from "@/components/RePlusCRUD";
 import { ElImage } from "element-plus";
 
-defineOptions({ name: "searchUser" });
+defineOptions({ name: "SearchUser" });
 
 const emit = defineEmits<{
-  (e: "change", ...args: any[]): void;
+  change: [...args: any[]];
 }>();
 
-const selectValue = defineModel({ type: Array<number> });
+const selectValue = defineModel<object | object[] | string>();
+const { multiple = true } = defineProps<{ multiple?: boolean }>();
 
 const api = reactive(searchUserApi);
 
@@ -42,8 +40,9 @@ const baseColumnsFormat = ({ listColumns }) => {
 
 <template>
   <RePlusSearch
-    v-if="hasAuth('list:systemSearchUser')"
+    v-if="hasAuth('list:SearchUser')"
     v-model="selectValue"
+    :multiple="multiple"
     locale-name="systemUser"
     :baseColumnsFormat="baseColumnsFormat"
     :api="api"

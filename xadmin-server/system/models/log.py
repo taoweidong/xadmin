@@ -20,19 +20,23 @@ class UserLoginLog(DbAuditModel):
         SMS = 1, _("SMS verification code")
         EMAIL = 2, _("Email verification code")
         WECHAT = 4, _("Wechat scan code")
+        WEBSOCKET = 8, _("Websocket")
         UNKNOWN = 9, _("Unknown")
 
     status = models.BooleanField(default=True, verbose_name=_("Login status"))
     ipaddress = models.GenericIPAddressField(verbose_name=_("IpAddress"), null=True, blank=True)
+    city = models.CharField(max_length=254, verbose_name=_("Login city"), null=True, blank=True)
     browser = models.CharField(max_length=64, verbose_name=_("Browser"), null=True, blank=True)
     system = models.CharField(max_length=64, verbose_name=_("System"), null=True, blank=True)
     agent = models.CharField(max_length=128, verbose_name=_("Agent"), null=True, blank=True)
+    channel_name = models.CharField(max_length=128, verbose_name=_("Channel name"), null=True, blank=True)
     login_type = models.SmallIntegerField(default=LoginTypeChoices.USERNAME, choices=LoginTypeChoices,
                                           verbose_name=_("Login type"))
 
     class Meta:
         verbose_name = _("User login log")
         verbose_name_plural = verbose_name
+        ordering = ('-created_time',)
 
     @staticmethod
     def get_login_type(query_key):
@@ -58,6 +62,8 @@ class OperationLog(DbAuditModel):
     response_code = models.IntegerField(verbose_name=_("Response code"), null=True, blank=True)
     response_result = models.TextField(verbose_name=_("Response result"), null=True, blank=True)
     status_code = models.IntegerField(verbose_name=_("Status code"), null=True, blank=True)
+    request_uuid = models.UUIDField(verbose_name=_("Request ID"), null=True, blank=True)
+    exec_time = models.FloatField(verbose_name=_("Execution time"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("Operation log")

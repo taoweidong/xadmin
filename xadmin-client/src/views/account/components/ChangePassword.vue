@@ -7,7 +7,7 @@ import { zxcvbn } from "@zxcvbn-ts/core";
 import { useI18n } from "vue-i18n";
 import { passwordRulesCheck } from "@/utils";
 import { rulesPasswordApi } from "@/api/auth";
-import { handleOperation } from "@/components/RePlusCRUD";
+import { handleOperation } from "@/components/RePlusPage";
 import { type PlusColumn } from "plus-pro-components";
 
 defineOptions({
@@ -25,6 +25,7 @@ interface FormPasswordProps {
   new_password: string;
   sure_password?: string;
 }
+
 interface AddOrEditFormProps {
   formInline?: FormPasswordProps;
   formProps?: object;
@@ -96,18 +97,6 @@ const formPasswordRules = reactive<FormRules>({
     }
   ]
 });
-
-const emit = defineEmits<{
-  (e: "handleUpdate", v: FormPasswordProps): void;
-}>();
-
-const handleUpdate = row => {
-  ruleFormRef.value.validate(valid => {
-    if (valid) {
-      emit("handleUpdate", row);
-    }
-  });
-};
 
 watch(
   password.value,

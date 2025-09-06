@@ -1,7 +1,6 @@
 import json
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
@@ -56,11 +55,8 @@ class Setting(DbAuditModel, DbUuidModel):
             pass
 
     @classmethod
-    def refresh_item(cls, name):
-        item = cls.objects.filter(name=name).first()
-        if not item:
-            return
-        item.refresh_setting()
+    def refresh_item(cls, data):
+        setattr(settings, data[0], data[1])
 
     def refresh_setting(self):
         setattr(settings, self.name, self.cleaned_value)

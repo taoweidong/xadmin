@@ -99,8 +99,10 @@ layout:
   fixedTip: 紧凑页面，轻松找到所需信息
   customization: 自定义
   customTip: 最小1280、最大1600
-  saveConfig: 保存配置
-  saveConfigTip: 将当前配置保存到服务器
+  saveConfig: 保存
+  saveConfigTip: 将当前项目配置保存到服务器
+  resetConfig: 重置
+  resetConfigTip: 重置为默认项目配置并刷新页面
 
 error:
   error403: 抱歉，你无权访问该页面
@@ -139,6 +141,10 @@ labels:
   failed: 失败
   checkColumn: 勾选列
   dClickCopy: 双击进行拷贝
+  online: 在线
+  offline: 下线
+  yes: 是
+  no: 否
 
 exportImport:
   import: 导入
@@ -154,11 +160,18 @@ exportImport:
   uploadRuleTip: 文件不能为空
   uploadTip: 可点击或拖拽上传
   downloadTip: 下载{ action }模板
+  ignoreError: 忽略错误
+
+messageNotifications:
+  messageType: 消息类型
+  receivers: 接收人
+  editRecipient: 修改消息接收人
+  editRecipientTitle: 修改 { title } 的消息接收人
 
 results:
   success: 执行成功
   failed: 执行失败
-  batchDelete: 批量删除 { count } 条数据
+  batchDestroy: 批量删除 { count } 条数据
   batchRead: 批量已读 { count } 条数据
   noSelectedData: 数据未选择
   formValidationFailed: 表单校验失败
@@ -198,7 +211,7 @@ buttons:
   sure: 确定
   edit: 编辑
   detail: 查看
-  batchDelete: 批量删除
+  batchDestroy: 批量删除
   batchDeleteConfirm: 确定批量删除 { count } 条数据吗？
   operateConfirm: 确定 { action } { message } ？
   selected: "已选 { count } 项"
@@ -213,14 +226,9 @@ menus:
   sysManagement: 系统管理
   systemSettings: 系统设置
   basicSettings: 基本设置
-  emailSettings: 邮件设置
+  messageSettings: 消息通知
   smsSettings: 短信设置
-  passwordSettings: 密码设置
-  registerSettings: 注册设置
-  loginSettings: 登录设置
-  verifySettings: 验证码设置
-  resetSettings: 重置密码
-  bindSettings: 绑定设置
+  securitySettings: 安全设置
   userManagement: 用户管理
   deptManagement: 部门管理
   menuManagement: 菜单管理
@@ -285,6 +293,7 @@ account:
   profile: 个人信息
   preference: 偏好设置
   securityLog: 安全日志
+  notifications: 消息订阅
   accountManagement: 账户管理
   back: 返回
   messagePush: 消息公告推送
@@ -317,6 +326,7 @@ systemUser:
   password: 密码
   roles: 角色
   rules: 数据权限
+  logout: 登出
 
 systemDept:
   dept: 部门
@@ -343,6 +353,7 @@ systemPermission:
   addValue: 属性值
   addType: 值类型
   addExclude: 排除
+  addExcludeTip: 返回查找参数不匹配的数据
   addMatch: 匹配
   rules: 规则列表
   table: 表名
@@ -410,6 +421,11 @@ systemMenu:
   fixedTagTip: 当前菜单名称是否固定显示在标签页且不可关闭
   hiddenTag: 隐藏标签页
   hiddenTagTip: 当前菜单名称或自定义信息禁止添加到标签页
+  addPermissions: 自动批量添加权限
+  codeSuffix: 权限标识后缀
+  codeSuffixTip: 默认为组件名称，若为空，则默认为后端视图名称，可自行修改
+  menuView: 后端视图名称
+  skipExistingData: 跳过已存在数据
 
 logsOperation:
   creator_id: 用户ID
@@ -522,6 +538,7 @@ login:
   forget: 忘记密码?
   login: 登录
   thirdLogin: 第三方登录
+  verifyCodeLogin: 验证码登录
   basicLogin: 普通登录
   qRCodeLogin: 二维码登录
   register: 注册
@@ -574,12 +591,23 @@ welcome:
 settingBasic:
   title: 基本设置
 
-settingEmail:
-  title: 邮件服务器
-  test: 邮件测试
+settingMessage:
+  mailTitle: 邮件服务器
+  messageTitle: 系统消息订阅
+
+settingSecurity:
+  code: 验证码安全配置
+  captcha: 图片验证码配置
+  login: 登录安全配置
+  limit: 登录限制配置
+  register: 注册安全配置
+  resetPassword: 重置密码配置
+  passwordRule: 密码规则配置
+  bingEmail: 绑定邮箱配置
+  bindPhone: 绑定手机配置
+  blockIp: 安全拦截IP
 
 settingPassword:
-  title: 密码规则配置
   tips: 密码需要满足
   minLength: 最小长度{length}位
   upperCase: 大写字母
@@ -587,27 +615,8 @@ settingPassword:
   number: 数字字符
   specialChar: 特殊字符
 
-settingLogin:
-  login: 登录安全配置
-  limit: 登录限制配置
-  title: 安全拦截IP
-
-settingRegister:
-  title: 注册安全配置
-
 settingSms:
   title: 短信设置
-
-settingVerify:
-  title: 验证码安全配置
-  captcha: 图片验证码配置
-
-settingReset:
-  title: 忘记密码设置
-
-settingBind:
-  title: 绑定邮箱配置
-  bindPhone: 绑定手机配置
 
 demoBook:
   book: 书籍
@@ -618,3 +627,5 @@ demoBook:
   publication_date: 出版日期
   price: 售价
   is_active: 是否启用
+  pushBook: 推送书籍
+  confirmPushBook: 确定将该书籍 {name} 推送到推荐服务？

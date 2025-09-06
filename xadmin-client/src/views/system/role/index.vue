@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { useRole } from "./utils/hook";
-import RePlusCRUD from "@/components/RePlusCRUD";
 
 defineOptions({
   name: "SystemRole"
@@ -16,7 +15,7 @@ const {
 </script>
 
 <template>
-  <RePlusCRUD
+  <RePlusPage
     :api="api"
     :auth="auth"
     locale-name="systemRole"

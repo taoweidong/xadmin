@@ -13,19 +13,17 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { onKeyStroke, useDebounceFn } from "@vueuse/core";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 import { cloneDeep, isAllEmpty, storageLocal } from "@pureadmin/utils";
-import SearchIcon from "@iconify-icons/ri/search-line";
+import SearchIcon from "~icons/ri/search-line";
 
 interface Props {
   /** 弹窗显隐 */
   value: boolean;
 }
 
-interface Emits {
-  (e: "update:value", val: boolean): void;
-}
-
 const { device, t } = useNav();
-const emit = defineEmits<Emits>();
+const emit = defineEmits<{
+  "update:value": [val: boolean];
+}>();
 const props = withDefaults(defineProps<Props>(), {});
 
 const router = useRouter();

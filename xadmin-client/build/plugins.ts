@@ -3,19 +3,17 @@ import vue from "@vitejs/plugin-vue";
 import { pathResolve } from "./utils";
 import { viteBuildInfo } from "./info";
 import svgLoader from "vite-svg-loader";
+import Icons from "unplugin-icons/vite";
 import type { PluginOption } from "vite";
-import checker from "vite-plugin-checker";
 import vueJsx from "@vitejs/plugin-vue-jsx";
+import tailwindcss from "@tailwindcss/vite";
 import { configCompressPlugin } from "./compress";
 import removeNoMatch from "vite-plugin-router-warn";
 import { visualizer } from "rollup-plugin-visualizer";
 import removeConsole from "vite-plugin-remove-console";
-import { themePreprocessorPlugin } from "@pureadmin/theme";
 import VueI18nPlugin from "@intlify/unplugin-vue-i18n/vite";
-import { genScssMultipleScopeVars } from "../src/layout/theme";
+import { codeInspectorPlugin } from "code-inspector-plugin";
 import { vitePluginFakeServer } from "vite-plugin-fake-server";
-import Inspector from "vite-plugin-vue-inspector";
-// import vueDevTools from "vite-plugin-vue-devtools";
 
 export function getPluginsList(
   VITE_CDN: boolean,
@@ -23,31 +21,23 @@ export function getPluginsList(
 ): PluginOption[] {
   const lifecycle = process.env.npm_lifecycle_event;
   return [
+    tailwindcss(),
     vue(),
     // jsx、tsx语法支持
     vueJsx(),
-    // vueDevTools(),
     VueI18nPlugin({
-      jitCompilation: false,
       include: [pathResolve("../locales/**")]
     }),
-    checker({
-      typescript: true,
-      vueTsc: true,
-      eslint: {
-        lintCommand: `eslint ${pathResolve("../{src,mock,build}/**/*.{vue,js,ts,tsx}")}`,
-        useFlatConfig: true
-      },
-      terminal: false,
-      enableBuild: false
-    }),
-    /**  Vue Inspector: Press Ctrl(^)+Shift(⇧) in App to toggle the Inspector
-     *   按下Command(⌘)+Shift(⇧)，然后点击页面元素会自动打开本地IDE并跳转到对应的代码位置
-     * launchEditor: 'appcode' | 'atom' | 'atom-beta' | 'brackets' | 'clion' | 'code' | 'code-insiders' | 'codium'
-     * | 'emacs' | 'idea' | 'notepad++' | 'pycharm' | 'phpstorm' | 'rubymine' | 'sublime' | 'vim' | 'visualstudio' | 'webstorm' | 'rider'
-     * https://github.com/webfansplz/vite-plugin-vue-inspector
+    /**
+     * 在页面上按住组合键时，鼠标在页面移动即会在 DOM 上出现遮罩层并显示相关信息，点击一下将自动打开 IDE 并将光标定位到元素对应的代码位置
+     * Mac 默认组合键 Option + Shift
+     * Windows 默认组合键 Alt + Shift
+     * 更多用法看 https://inspector.fe-dev.cn/guide/start.html
      */
-    Inspector({ launchEditor: "webstorm" }),
+    codeInspectorPlugin({
+      bundler: "vite",
+      hideConsole: true
+    }),
     viteBuildInfo(),
     /**
      * 开发环境下移除非必要的vue-router动态路由警告No match found for location with path
@@ -62,15 +52,13 @@ export function getPluginsList(
       infixName: false,
       enableProd: true
     }),
-    // 自定义主题
-    themePreprocessorPlugin({
-      scss: {
-        multipleScopeVars: genScssMultipleScopeVars(),
-        extract: true
-      }
-    }),
     // svg组件化支持
     svgLoader(),
+    // 自动按需加载图标
+    Icons({
+      compiler: "vue3",
+      scale: 1
+    }),
     VITE_CDN ? cdn : null,
     configCompressPlugin(VITE_COMPRESSION),
     // 线上环境删除console

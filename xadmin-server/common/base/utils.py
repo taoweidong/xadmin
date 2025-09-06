@@ -6,7 +6,6 @@
 # date : 6/2/2023
 import base64
 import hashlib
-import logging
 import os
 
 from Cryptodome import Random
@@ -14,7 +13,9 @@ from Cryptodome.Cipher import AES
 from django.conf import settings
 from django.forms.models import ModelChoiceIteratorValue
 
-logger = logging.getLogger(__file__)
+from common.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class AESCipher(object):
@@ -145,7 +146,7 @@ def format_menu_meta(meta: dict) -> dict:
 def format_menu_data(data):
     new_result = []
     for d in data:
-        if d.get('count', -1) < 2:
+        if d.get('count', -1) < 1:
             route = {
                 'path': f"/default{d.get('path')}",
                 'title': d.get('title'),

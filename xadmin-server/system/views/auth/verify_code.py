@@ -17,8 +17,8 @@ from common.base.utils import AESCipherV2
 from common.core.response import ApiResponse
 from common.fields.utils import get_file_absolute_uri
 from common.swagger.utils import get_default_response_schema
+from common.utils import random_string
 from common.utils.request import get_request_ip
-from common.utils.token import random_string
 from common.utils.verify_code import SendAndVerifyCodeUtil, TokenTempCache
 from settings.utils.password import get_password_check_rules
 from settings.utils.security import SendVerifyCodeBlockUtil, LoginIpBlockUtil
@@ -95,7 +95,7 @@ from system.utils.auth import check_token_and_captcha, check_is_block
         )
     )
 )
-class SendVerifyCodeView(GenericAPIView):
+class SendVerifyCodeAPIView(GenericAPIView):
     """获取验证码配置"""
     permission_classes = []
     authentication_classes = []
@@ -118,6 +118,7 @@ class SendVerifyCodeView(GenericAPIView):
         return ApiResponse(data=get_config_func(request))
 
     def post(self, request):
+        """发送验证码"""
         category = request.query_params.get('category')
         config = getattr(self, 'get_%s_config' % category)(request)
         if not config.get("access"):

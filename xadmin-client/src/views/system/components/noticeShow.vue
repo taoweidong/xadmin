@@ -3,6 +3,7 @@ import { onBeforeUnmount, ref, shallowRef } from "vue";
 import "@wangeditor/editor/dist/css/style.css";
 import { Editor } from "@wangeditor/editor-for-vue";
 import { useI18n } from "vue-i18n";
+import { NoticeChoices } from "@/views/system/constants";
 
 interface FormItemProps {
   pk?: number;
@@ -10,11 +11,11 @@ interface FormItemProps {
   level?: { value: "primary" | "success" | "warning" | "danger" | "info" };
   title?: string;
   message?: string;
-  notice_type?: number | object;
+  notice_type?: { value?: number; label?: string };
 }
 
 interface FormProps {
-  formInline: FormItemProps;
+  formInline?: FormItemProps;
   hasPublish?: boolean;
 }
 
@@ -63,6 +64,9 @@ const loading = ref(false);
   <el-form ref="formRef" :model="newFormInline" label-width="82px">
     <el-card shadow="never">
       <template #header>
+        <h2 class="inline-block mr-6">
+          {{ newFormInline?.notice_type?.label }}
+        </h2>
         <el-text :type="newFormInline.level?.value" size="large"
           >{{ newFormInline.title }}
         </el-text>
@@ -75,13 +79,17 @@ const loading = ref(false);
           }}
         </el-tag>
       </template>
-      <div class="wangeditor">
+      <div
+        v-if="newFormInline?.notice_type?.value === NoticeChoices.SYSTEM"
+        v-html="newFormInline.message"
+      />
+      <div v-else class="wangeditor">
         <Editor
           v-model="newFormInline.message"
           v-loading="loading"
           :defaultConfig="editorConfig"
           :mode="mode"
-          style="height: 500px; overflow-y: hidden"
+          style="min-height: 500px; overflow-y: hidden"
           @onCreated="handleCreated"
         />
       </div>

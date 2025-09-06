@@ -1,22 +1,25 @@
 <script lang="ts" setup>
 import { useRouter } from "vue-router";
-import { onBeforeMount, ref } from "vue";
+import { computed, onBeforeMount, ref } from "vue";
 import { ReText } from "@/components/ReText";
 import Profile from "./components/Profile.vue";
 import Preferences from "./components/Preferences.vue";
 import SecurityLog from "./components/SecurityLog.vue";
+import Notifications from "./components/Notifications.vue";
 import { deviceDetection, useGlobal } from "@pureadmin/utils";
 import AccountManagement from "./components/AccountManagement.vue";
 import TopCollapse from "@/layout/components/lay-sidebar/components/SidebarTopCollapse.vue";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 import avatar from "@/assets/avatar.png";
-import leftLine from "@iconify-icons/ri/arrow-left-s-line";
-import ProfileIcon from "@iconify-icons/ri/user-3-line";
-import PreferencesIcon from "@iconify-icons/ri/settings-3-line";
-import SecurityLogIcon from "@iconify-icons/ri/window-line";
-import AccountManagementIcon from "@iconify-icons/ri/profile-line";
+import leftLine from "~icons/ri/arrow-left-s-line";
+import ProfileIcon from "~icons/ri/user-3-line";
+import PreferencesIcon from "~icons/ri/settings-3-line";
+import SecurityLogIcon from "~icons/ri/window-line";
+import MessageIcon from "~icons/ep/message";
+import AccountManagementIcon from "~icons/ri/profile-line";
 import { useUserStoreHook } from "@/store/modules/user";
 import { useI18n } from "vue-i18n";
+import { hasAuth } from "@/router/utils";
 
 defineOptions({
   name: "Account"
@@ -31,32 +34,43 @@ onBeforeMount(() => {
 });
 const { t } = useI18n();
 
-const panes = [
+const panes = computed(() => [
   {
     key: "profile",
     label: t("account.profile"),
     icon: ProfileIcon,
-    component: Profile
-  },
-  {
-    key: "preferences",
-    label: t("account.preference"),
-    icon: PreferencesIcon,
-    component: Preferences
-  },
-  {
-    key: "securityLog",
-    label: t("account.securityLog"),
-    icon: SecurityLogIcon,
-    component: SecurityLog
+    component: Profile,
+    auth: true
   },
   {
     key: "accountManagement",
     label: t("account.accountManagement"),
     icon: AccountManagementIcon,
-    component: AccountManagement
+    component: AccountManagement,
+    auth: hasAuth("resetPassword:UserInfo") || hasAuth("bind:UserInfo")
+  },
+  {
+    key: "preferences",
+    label: t("account.preference"),
+    icon: PreferencesIcon,
+    component: Preferences,
+    auth: true
+  },
+  {
+    key: "Notifications",
+    label: t("account.notifications"),
+    icon: MessageIcon,
+    component: Notifications,
+    auth: hasAuth("list:UserMsgSubscription")
+  },
+  {
+    key: "securityLog",
+    label: t("account.securityLog"),
+    icon: SecurityLogIcon,
+    component: SecurityLog,
+    auth: hasAuth("list:UserLoginLog")
   }
-];
+]);
 const witchPane = ref("profile");
 </script>
 
@@ -65,31 +79,33 @@ const witchPane = ref("profile");
     <el-aside
       v-if="isOpen"
       :width="deviceDetection() ? '180px' : '210px'"
-      class="pure-account-settings overflow-hidden px-2 dark:!bg-[var(--el-bg-color)] border-r-[1px] border-[var(--pure-border-color)]"
+      class="pure-account-settings overflow-hidden px-2 dark:bg-(--el-bg-color)! border-r-[1px] border-[var(--pure-border-color)]"
     >
       <el-menu :default-active="witchPane" class="pure-account-settings-menu">
-        <el-menu-item
-          class="hover:!transition-all hover:!duration-200 hover:!text-base !h-[50px]"
+        <div
+          class="h-[50px]! text-[var(--pure-theme-menu-text)] cursor-pointer text-sm transition-all duration-300 ease-in-out hover:scale-105 will-change-transform transform-gpu origin-center hover:text-base! hover:text-[var(--pure-theme-menu-title-hover)]!"
           @click="router.go(-1)"
         >
-          <div class="flex items-center">
+          <div
+            class="h-full flex items-center px-[var(--el-menu-base-level-padding)]"
+          >
             <IconifyIconOffline :icon="leftLine" />
             <span class="ml-2">{{ t("account.back") }}</span>
           </div>
-        </el-menu-item>
+        </div>
         <div class="flex items-center ml-8 mt-4 mb-4">
           <el-avatar :size="48" :src="userinfoStore.avatar ?? avatar" />
           <div class="ml-4 flex flex-col max-w-[100px]">
-            <ReText class="font-bold !self-baseline">
+            <ReText class="font-bold self-baseline!">
               {{ userinfoStore.nickname }}
             </ReText>
-            <ReText class="!self-baseline" type="info">
+            <ReText class="self-baseline!" type="info">
               {{ userinfoStore.username }}
             </ReText>
           </div>
         </div>
         <el-menu-item
-          v-for="item in panes"
+          v-for="item in panes.filter(item => item.auth)"
           :key="item.key"
           :index="item.key"
           @click="
@@ -127,7 +143,7 @@ const witchPane = ref("profile");
 
 <style lang="scss">
 .pure-account-settings {
-  background: $menuBg;
+  background: var(--pure-theme-menu-bg) !important;
 }
 
 .pure-account-settings-menu {
@@ -136,12 +152,12 @@ const witchPane = ref("profile");
 
   .el-menu-item {
     height: 48px !important;
-    color: $menuText;
+    color: var(--pure-theme-menu-text);
     background-color: transparent !important;
     transition: color 0.2s;
 
     &:hover {
-      color: $menuTitleHover !important;
+      color: var(--pure-theme-menu-title-hover) !important;
     }
 
     &.is-active {
@@ -154,8 +170,8 @@ const witchPane = ref("profile");
       &::before {
         position: absolute;
         inset: 0;
-        margin: 4px 0;
         clear: both;
+        margin: 4px 0;
         content: "";
         background: var(--el-color-primary);
         border-radius: 3px;

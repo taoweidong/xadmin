@@ -1,17 +1,16 @@
-import { message } from "@/utils/message";
-import { h, reactive, ref, type Ref, shallowRef } from "vue";
-import { userNoticeReadApi } from "@/api/user/notice";
-import { deviceDetection, getKeyList } from "@pureadmin/utils";
-import { addDialog } from "@/components/ReDialog";
 import { useI18n } from "vue-i18n";
-import { useUserStoreHook } from "@/store/modules/user";
-
 import { hasAuth } from "@/router/utils";
-import type { CRUDColumn, OperationProps } from "@/components/RePlusCRUD";
+import { message } from "@/utils/message";
+import { addDialog } from "@/components/ReDialog";
+import { userNoticeReadApi } from "@/api/user/notice";
+import { useUserStoreHook } from "@/store/modules/user";
+import { h, reactive, ref, type Ref, shallowRef } from "vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import noticeShowForm from "@/views/system/components/noticeShow.vue";
+import { deviceDetection, getKeyList } from "@pureadmin/utils";
+import NoticeShowForm from "@/views/system/components/NoticeShow.vue";
+import type { OperationProps, PageTableColumn } from "@/components/RePlusPage";
 
-import Success from "@iconify-icons/ep/success-filled";
+import Success from "~icons/ep/success-filled";
 
 export function useUserNotice(tableRef: Ref) {
   const { t } = useI18n();
@@ -19,10 +18,9 @@ export function useUserNotice(tableRef: Ref) {
   const api = reactive(userNoticeReadApi);
 
   const auth = reactive({
-    list: hasAuth("list:userNotice"),
-    detail: hasAuth("detail:userNoticeRead"),
-    batchRead: hasAuth("update:userNoticeRead"),
-    allRead: hasAuth("update:userNoticeReadAll")
+    list: hasAuth("list:UserNotice"),
+    batchRead: hasAuth("batchRead:UserNotice"),
+    allRead: hasAuth("allRead:UserNotice")
   });
 
   const selectedNum = ref(0);
@@ -70,7 +68,7 @@ export function useUserNotice(tableRef: Ref) {
       fullscreenIcon: true,
       closeOnClickModal: false,
       hideFooter: true,
-      contentRenderer: () => h(noticeShowForm),
+      contentRenderer: () => h(NoticeShowForm),
       closeCallBack: () => {
         if (routeParams?.pk) {
           searchFields.value.pk = "";
@@ -102,12 +100,12 @@ export function useUserNotice(tableRef: Ref) {
     manySelectData.value = data;
     selectedNum.value = manySelectData.value.length ?? 0;
   };
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "title":
           column["cellRenderer"] = ({ row }) => (
-            <el-text type={row.level}>{row.title}</el-text>
+            <el-text type={row.level?.value}>{row.title}</el-text>
           );
           break;
         case "unread":

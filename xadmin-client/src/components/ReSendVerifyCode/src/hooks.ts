@@ -10,7 +10,7 @@ import { useVerifyCode } from "./verifyCode";
 import type { FormRules } from "element-plus";
 import { $t, transformI18n } from "@/plugins/i18n";
 import { AesEncrypted } from "@/utils/aes";
-import { handleOperation } from "@/components/RePlusCRUD";
+import { handleOperation } from "@/components/RePlusPage";
 import { useI18n } from "vue-i18n";
 
 export const useSendVerifyCode = (
@@ -128,7 +128,7 @@ export const useSendVerifyCode = (
     ]
   });
 
-  const fetchSuggestions = (queryString, callback) => {
+  const fetchSuggestions = (queryString: string, callback: any) => {
     const emailList = [
       { value: "@qq.com" },
       { value: "@126.com" },
@@ -141,12 +141,11 @@ export const useSendVerifyCode = (
       { value: "@ask.com" },
       { value: "@live.com" }
     ];
-    let results = [];
-    let queryList = [];
+    const queryList = [];
     emailList.map(item =>
       queryList.push({ value: queryString.split("@")[0] + item.value })
     );
-    results = queryString
+    const results = queryString
       ? queryList.filter(
           item =>
             item.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0
@@ -202,23 +201,27 @@ export const useSendVerifyCode = (
   };
 
   onMounted(() => {
-    verifyCodeConfigApi({ category: props.category }).then(res => {
-      if (res.code === 1000) {
-        Object.keys(res.data).forEach(key => {
-          verifyCodeConfig[key] = res.data[key];
-        });
-        emit("configReqSuccess", verifyCodeConfig);
-        if (isEmpty(formData.value.form_type)) {
-          if (verifyCodeConfig.sms) {
-            formData.value.form_type = "phone";
+    verifyCodeConfigApi({ category: props.category })
+      .then(res => {
+        if (res.code === 1000) {
+          Object.keys(res.data).forEach(key => {
+            verifyCodeConfig[key] = res.data[key];
+          });
+          emit("configReqSuccess", verifyCodeConfig);
+          if (isEmpty(formData.value.form_type)) {
+            if (verifyCodeConfig.sms) {
+              formData.value.form_type = "phone";
+            }
+            if (verifyCodeConfig.email) {
+              formData.value.form_type = "email";
+            }
           }
-          if (verifyCodeConfig.email) {
-            formData.value.form_type = "email";
-          }
+          initToken();
         }
-        initToken();
-      }
-    });
+      })
+      .finally(() => {
+        emit("configReqEnd");
+      });
   });
 
   return {

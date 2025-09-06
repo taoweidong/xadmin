@@ -4,7 +4,6 @@
 # filename : user
 # author : ly_13
 # date : 6/16/2023
-import logging
 
 from django.utils.translation import gettext_lazy as _
 from django_filters import rest_framework as filters
@@ -17,13 +16,15 @@ from common.core.filter import BaseFilterSet
 from common.core.modelset import BaseModelSet, UploadFileAction, ImportExportDataAction
 from common.core.response import ApiResponse
 from common.swagger.utils import get_default_response_schema
+from common.utils import get_logger
+from message.utils import send_logout_msg
+from notifications.message import SiteMessageUtil
 from settings.utils.security import LoginBlockUtil
 from system.models import UserInfo
 from system.serializers.user import UserSerializer, ResetPasswordSerializer
-from system.utils import notify
 from system.utils.modelset import ChangeRolePermissionAction
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class UserFilter(BaseFilterSet):
@@ -36,20 +37,16 @@ class UserFilter(BaseFilterSet):
         fields = ['username', 'nickname', 'phone', 'email', 'is_active', 'gender', 'pk', 'mode_type', 'dept']
 
 
-class UserView(BaseModelSet, UploadFileAction, ChangeRolePermissionAction, ImportExportDataAction):
-    """用户管理"""
+class UserViewSet(BaseModelSet, UploadFileAction, ChangeRolePermissionAction, ImportExportDataAction):
+    """用户"""
     FILE_UPLOAD_FIELD = 'avatar'
-    queryset = UserInfo.objects.select_related('dept').prefetch_related('roles').all()
+    queryset = UserInfo.objects.all()
     serializer_class = UserSerializer
 
     ordering_fields = ['date_joined', 'last_login', 'created_time']
     filterset_class = UserFilter
 
-    def get_queryset(self):
-        # 优化查询，使用select_related和prefetch_related减少数据库查询
-        if self.action == 'list':
-            return self.queryset.select_related('dept').prefetch_related('roles')
-        return self.queryset
+    # export_as_zip = True  导出zip压缩包，密码是用户名
 
     def perform_destroy(self, instance):
         if instance.is_superuser:
@@ -57,7 +54,6 @@ class UserView(BaseModelSet, UploadFileAction, ChangeRolePermissionAction, Impor
         return instance.delete()
 
     @extend_schema(
-        description='批量删除',
         request=OpenApiRequest(
             build_object_type(
                 properties={'pks': build_array_type(build_basic_type(OpenApiTypes.STR))},
@@ -67,24 +63,45 @@ class UserView(BaseModelSet, UploadFileAction, ChangeRolePermissionAction, Impor
         ),
         responses=get_default_response_schema()
     )
-    @action(methods=['post'], detail=False, url_path='batch-delete')
-    def batch_delete(self, request, *args, **kwargs):
+    @action(methods=['post'], detail=False, url_path='batch-destroy')
+    def batch_destroy(self, request, *args, **kwargs):
+        """批量删除{cls}"""
         self.queryset = self.queryset.filter(is_superuser=False)
-        return super().batch_delete(request, *args, **kwargs)
+        return super().batch_destroy(request, *args, **kwargs)
 
-    @extend_schema(description='管理员重置用户密码', responses=get_default_response_schema())
+    @extend_schema(responses=get_default_response_schema())
     @action(methods=['post'], detail=True, url_path='reset-password', serializer_class=ResetPasswordSerializer)
     def reset_password(self, request, *args, **kwargs):
+        """重置用户密码"""
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        notify.notify_error(users=instance, title="密码重置成功",
-                            message="密码被管理员重置成功")
+        SiteMessageUtil.notify_error(users=instance, title="密码重置成功", message="密码被管理员重置成功")
         return ApiResponse()
 
+    @extend_schema(responses=get_default_response_schema(), request=None)
     @action(methods=["post"], detail=True)
     def unblock(self, request, *args, **kwargs):
+        """解禁用户"""
         instance = self.get_object()
         LoginBlockUtil.unblock_user(instance.username)
+        return ApiResponse()
+
+    @extend_schema(
+        request=OpenApiRequest(
+            build_object_type(
+                properties={'channel_names': build_array_type(build_basic_type(OpenApiTypes.STR))},
+                required=['channel_names'],
+                description="列表"
+            )
+        ),
+        responses=get_default_response_schema()
+    )
+    @action(methods=["post"], detail=True)
+    def logout(self, request, *args, **kwargs):
+        """强退用户"""
+        instance = self.get_object()
+        channel_names = request.data.get('channel_names', [])
+        send_logout_msg(instance.pk, channel_names)
         return ApiResponse()

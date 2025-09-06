@@ -31,19 +31,19 @@ class IpUtils(object):
     def ip_to_int(self):
         return str(struct.unpack("!I", socket.inet_aton(self.ip))[0])
 
-
     def int_to_ip(self):
         return socket.inet_ntoa(struct.pack("!I", int(self.ip)))
 
 
-
-class BlockIpView(ListDeleteModelSet):
+class SecurityBlockIpViewSet(ListDeleteModelSet):
+    """Ip拦截名单"""
     serializer_class = SecurityBlockIPSerializer
     queryset = Setting.objects.none()
 
     def filter_queryset(self, obj):
         # 为啥写函数，去没有加(), 因为只有在序列化的时候，才会判断，如果是方法就执行，减少资源浪费
-        data = [{'ip': ip, 'pk': IpUtils(ip).ip_to_int, 'created_time': LoginIpBlockUtil(ip).get_block_info} for ip in obj]
+        data = [{'ip': ip, 'pk': IpUtils(ip).ip_to_int, 'created_time': LoginIpBlockUtil(ip).get_block_info} for ip in
+                obj]
         return FilterIps(data)
 
     def get_queryset(self):
@@ -63,4 +63,4 @@ class BlockIpView(ListDeleteModelSet):
 
     def perform_destroy(self, ip):
         LoginIpBlockUtil(ip).clean_block_if_need()
-        return 1,1
+        return 1, 1

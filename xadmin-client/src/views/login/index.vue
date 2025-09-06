@@ -5,7 +5,7 @@ import basic from "./components/basic.vue";
 import TypeIt from "@/components/ReTypeit";
 import qrCode from "./components/qrCode.vue";
 import register from "./components/register.vue";
-import update from "./components/resetPassword.vue";
+import resetPassword from "./components/resetPassword.vue";
 import login from "./components/login.vue";
 import { useNav } from "@/layout/hooks/useNav";
 import { useLayout } from "@/layout/hooks/useLayout";
@@ -18,7 +18,7 @@ import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 import dayIcon from "@/assets/svg/day.svg?component";
 import darkIcon from "@/assets/svg/dark.svg?component";
 import globalization from "@/assets/svg/globalization.svg?component";
-import Check from "@iconify-icons/ep/check";
+import Check from "~icons/ep/check";
 
 defineOptions({
   name: "LoginIndex"
@@ -51,12 +51,12 @@ const { locale, translationCh, translationEn } = useTranslationLang();
       <!-- 国际化 -->
       <el-dropdown trigger="click">
         <globalization
-          class="hover:text-primary hover:!bg-[transparent] w-[20px] h-[20px] ml-1.5 cursor-pointer outline-none duration-300"
+          class="hover:text-primary hover:bg-[transparent]! w-[20px] h-[20px] ml-1.5 cursor-pointer outline-hidden duration-300"
         />
         <template #dropdown>
           <el-dropdown-menu class="translation">
             <el-dropdown-item
-              :class="['dark:!text-white', getDropdownItemClass(locale, 'zh')]"
+              :class="['dark:text-white!', getDropdownItemClass(locale, 'zh')]"
               :style="getDropdownItemStyle(locale, 'zh')"
               @click="translationCh"
             >
@@ -68,7 +68,7 @@ const { locale, translationCh, translationEn } = useTranslationLang();
               简体中文
             </el-dropdown-item>
             <el-dropdown-item
-              :class="['dark:!text-white', getDropdownItemClass(locale, 'en')]"
+              :class="['dark:text-white!', getDropdownItemClass(locale, 'en')]"
               :style="getDropdownItemStyle(locale, 'en')"
               @click="translationEn"
             >
@@ -89,32 +89,32 @@ const { locale, translationCh, translationEn } = useTranslationLang();
         <div class="login-form">
           <avatar class="avatar" />
           <Motion>
-            <h2 class="outline-none">
+            <h2 class="outline-hidden">
               <TypeIt
                 :options="{ strings: [title], cursor: false, speed: 100 }"
               />
             </h2>
           </Motion>
-
-          <login v-if="currentPage === 0" />
+          <!-- 账户密码登录 -->
+          <basic v-if="currentPage === 0" />
 
           <!-- 验证码登录 -->
-          <basic v-if="currentPage === 1" />
+          <login v-if="currentPage === 1" />
           <!-- 二维码登录 -->
           <qrCode v-if="currentPage === 2" />
           <!-- 注册 -->
           <register v-if="currentPage === 3" />
           <!-- 忘记密码 -->
-          <update v-if="currentPage === 4" />
+          <resetPassword v-if="currentPage === 4" />
         </div>
       </div>
     </div>
     <div
       class="w-full flex-c absolute bottom-3 text-sm text-[rgba(0,0,0,0.6)] dark:text-[rgba(220,220,242,0.8)]"
     >
-      Copyright © 2020-present
+      Copyright © 2023-present
       <a
-        class="hover:text-primary"
+        class="hover:text-primary!"
         href="https://github.com/nineaiyu/"
         target="_blank"
       >

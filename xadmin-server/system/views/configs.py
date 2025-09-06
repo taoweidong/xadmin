@@ -22,7 +22,7 @@ def config_response_schema():
     return get_default_response_schema({'config': build_object_type(), 'auth': build_basic_type(OpenApiTypes.STR)})
 
 
-class ConfigsView(GenericViewSet):
+class ConfigsViewSet(GenericViewSet):
     """配置信息"""
     queryset = UserPersonalConfig.objects.none()
     serializer_class = UserPersonalConfigSerializer
@@ -33,6 +33,7 @@ class ConfigsView(GenericViewSet):
 
     @extend_schema(responses=config_response_schema())
     def retrieve(self, request, *args, **kwargs):
+        """获取{cls}"""
         value_key = self.kwargs[self.lookup_field]
         if value_key:
             if request.user and request.user.is_authenticated:
@@ -47,7 +48,8 @@ class ConfigsView(GenericViewSet):
 
     @extend_schema(responses=config_response_schema(), request=OpenApiRequest(build_object_type()))
     @auth_required
-    def update(self, request, *args, **kwargs):
+    def partial_update(self, request, *args, **kwargs):
+        """更新{cls}"""
         value_key = self.kwargs[self.lookup_field]
         if value_key:
             config = UserConfig(request.user).get_value(value_key, ignore_access=False)
@@ -62,6 +64,7 @@ class ConfigsView(GenericViewSet):
     @extend_schema(responses=config_response_schema())
     @auth_required
     def destroy(self, request, *args, **kwargs):
+        """删除{cls}"""
         value_key = self.kwargs[self.lookup_field]
         if value_key:
             UserConfig(request.user).del_value(value_key)

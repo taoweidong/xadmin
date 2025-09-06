@@ -4,9 +4,11 @@
 # filename : exception
 # author : ly_13
 # date : 6/2/2023
+import traceback
 from logging import getLogger
 
-from django.db.models import ProtectedError, RestrictedError
+from django.conf import settings
+from django.db.models import ProtectedError
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import Throttled, APIException
@@ -21,6 +23,10 @@ unexpected_exception_logger = getLogger('unexpected_exception')
 
 
 def common_exception_handler(exc, context):
+    if settings.DEBUG_DEV:
+        logger.exception('Print traceback exception for Debug')
+        traceback.print_exc()
+
     # context['view']  是TextView的对象，想拿出这个对象对应的类名
     ret = exception_handler(exc, context)  # 是Response对象，它内部有个data
     logger.error(f'{context["view"].__class__.__name__} ERROR: {exc} ret:{ret}')
@@ -53,9 +59,10 @@ def common_exception_handler(exc, context):
         ret.status_code = 400
         ret.data = {'detail': _("The requested address is incorrect or the data permission is not allowed")}
 
-    elif isinstance(exc, (ProtectedError, RestrictedError)):
+    elif isinstance(exc, ProtectedError):
         set_rollback()
-        return ApiResponse(code=998, detail=_("This data with other data binding"))
+        verbose_name = exc.protected_objects.pop()._meta.verbose_name
+        return ApiResponse(code=998, detail=_("Is referenced by other {} and cannot be deleted").format(verbose_name))
     else:
         unexpected_exception_logger.exception('')
 

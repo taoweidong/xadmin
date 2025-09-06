@@ -5,18 +5,20 @@
 # author : ly_13
 # date : 7/31/2024
 
-import logging
-
 from django.conf import settings
+from django_filters import rest_framework as filters
 
-from common.core.modelset import NoDetailModelSet
+from common.core.filter import BaseFilterSet
+from common.core.modelset import NoDetailModelSet, ImportExportDataAction, ListDeleteModelSet
+from common.utils import get_logger
 from settings.models import Setting
 from settings.serializers.basic import BasicSettingSerializer
+from settings.serializers.setting import SettingSerializer
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
-class BaseSettingView(NoDetailModelSet):
+class BaseSettingViewSet(NoDetailModelSet):
     queryset = Setting.objects.all()
     serializer_class = BasicSettingSerializer
     category = "basic"
@@ -62,14 +64,34 @@ class BaseSettingView(NoDetailModelSet):
         post_data_names = list(self.request.data.keys())
         settings_items = self.parse_serializer_data(serializer)
         serializer_data = getattr(serializer, 'data', {})
-
+        change_fields = []
         for item in settings_items:
             if item['name'] not in post_data_names:
                 continue
             changed, setting = Setting.update_or_create(**item, user=self.request.user)
             if not changed:
                 continue
+            change_fields.append(setting.name)
             serializer_data[setting.name] = setting.cleaned_value
         setattr(serializer, '_data', serializer_data)
+        setattr(serializer, '_change_fields', change_fields)
         if hasattr(serializer, 'post_save'):
             serializer.post_save()
+
+
+class SettingFilter(BaseFilterSet):
+    pk = filters.UUIDFilter(field_name='id')
+    name = filters.CharFilter(field_name='name', lookup_expr='icontains')
+    value = filters.CharFilter(field_name='value', lookup_expr='icontains')
+
+    class Meta:
+        model = Setting
+        fields = ['pk', 'is_active', 'name', 'category', 'value']
+
+
+class SettingViewSet(ListDeleteModelSet, ImportExportDataAction):
+    """系统设置"""
+    queryset = Setting.objects.all()
+    serializer_class = SettingSerializer
+    ordering_fields = ['created_time', 'category']
+    filterset_class = SettingFilter

@@ -1,33 +1,61 @@
 import { useI18n } from "vue-i18n";
 import { loginLogApi } from "@/api/system/logs/login";
 import { useRouter } from "vue-router";
-import { hasAuth } from "@/router/utils";
-import { reactive, shallowRef } from "vue";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
+import { getCurrentInstance, reactive, shallowRef } from "vue";
 import { usePublicHooks } from "@/views/system/hooks";
 import {
-  type CRUDColumn,
+  type PageTableColumn,
   type OperationProps,
-  renderBooleanTag
-} from "@/components/RePlusCRUD";
+  renderBooleanTag,
+  handleOperation
+} from "@/components/RePlusPage";
+import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+import Logout from "~icons/ri/logout-circle-r-line";
 
-export function useLoginLog() {
+export function useLoginLog(tableRef) {
   const { t } = useI18n();
   const api = reactive(loginLogApi);
 
   const auth = reactive({
-    list: hasAuth("list:systemLoginLog"),
-    delete: hasAuth("delete:systemLoginLog"),
-    export: hasAuth("export:systemLoginLog"),
-    batchDelete: hasAuth("batchDelete:systemLoginLog")
+    logout: false,
+    ...getDefaultAuths(getCurrentInstance(), ["logout"])
   });
 
   const router = useRouter();
   const { tagStyle } = usePublicHooks();
 
   const operationButtonsProps = shallowRef<OperationProps>({
-    width: 140
+    width: 180,
+    buttons: [
+      {
+        text: t("systemUser.logout"),
+        code: "logout",
+        props: (row, button) => {
+          const disabled = row?.online !== true;
+          return {
+            ...(button?._?.props ?? {
+              icon: useRenderIcon(Logout),
+              plain: true,
+              link: true
+            }), // button?._ 这个表示之前老的按钮信息
+            ...{ disabled, type: disabled ? "default" : "danger" }
+          };
+        },
+        onClick: ({ row }) => {
+          handleOperation({
+            t,
+            apiReq: api.logout(row.pk, {}),
+            success() {
+              tableRef.value.handleGetData();
+            }
+          });
+        },
+        show: auth.logout
+      }
+    ]
   });
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "creator":
@@ -41,7 +69,20 @@ export function useLoginLog() {
           column["cellRenderer"] = renderBooleanTag({
             t,
             tagStyle,
-            field: column.prop
+            field: column.prop,
+            actionMap: { true: t("labels.success"), false: t("labels.failed") }
+          });
+          break;
+        case "online":
+          column["cellRenderer"] = renderBooleanTag({
+            t,
+            tagStyle,
+            field: column.prop,
+            actionMap: {
+              true: t("labels.online"),
+              false: t("labels.offline"),
+              "-1": "/"
+            }
           });
           break;
       }
@@ -50,7 +91,7 @@ export function useLoginLog() {
   };
 
   function onGoDetail(row: any) {
-    if (hasAuth("list:systemUser") && row?.creator && row?.creator?.pk) {
+    if (hasAuth("list:SystemUser") && row?.creator && row?.creator?.pk) {
       router.push({
         name: "SystemUser",
         query: { pk: row.creator.pk }

@@ -1,18 +1,11 @@
 import { useI18n } from "vue-i18n";
-import {
-  cloneDeep,
-  createFormData,
-  delay,
-  deviceDetection
-} from "@pureadmin/utils";
+import { createFormData, delay, deviceDetection } from "@pureadmin/utils";
 import { hasAuth } from "@/router/utils";
-import { message } from "@/utils/message";
-import { computed, h, onMounted, reactive, type Ref, ref, toRaw } from "vue";
+import { computed, h, onMounted, reactive, type Ref, ref } from "vue";
 import { userInfoApi } from "@/api/user/userinfo";
 import { useUserStoreHook } from "@/store/modules/user";
 import type { PlusColumn } from "plus-pro-components";
 import {
-  formatColumnsLabel,
   formatFormColumns,
   formatOptions,
   picturePng,
@@ -21,29 +14,33 @@ import {
 import { addDialog } from "@/components/ReDialog/index";
 import croppingUpload from "@/components/RePictureUpload";
 import { userLoginLogApi } from "@/api/user/logs";
-import dayjs from "dayjs";
 import type { PaginationProps } from "@pureadmin/table";
-import { handleOperation, openFormDialog } from "@/components/RePlusCRUD";
+import {
+  type PageTableColumn,
+  handleOperation,
+  openDialogDrawer,
+  renderBooleanTag
+} from "@/components/RePlusPage";
 import BindEmailOrPhone from "../components/BindEmailOrPhone.vue";
 import ChangePassword from "../components/ChangePassword.vue";
 import { AesEncrypted } from "@/utils/aes";
 
 export function useApiAuth() {
   const api = reactive({
-    detail: userInfoApi.detail,
+    retrieve: userInfoApi.retrieve,
     bind: userInfoApi.bind,
-    update: userInfoApi.patch,
-    reset: userInfoApi.reset,
+    partialUpdate: userInfoApi.partialUpdate,
+    resetPassword: userInfoApi.resetPassword,
     upload: userInfoApi.upload,
     choices: userInfoApi.choices
   });
 
-  const auth = reactive({
+  const auth = computed(() => ({
     upload: hasAuth("upload:UserInfo"),
-    update: hasAuth("update:UserInfo"),
+    partialUpdate: hasAuth("partialUpdate:UserInfo"),
     bind: hasAuth("bind:UserInfo"),
-    reset: hasAuth("reset:UserInfo")
-  });
+    resetPassword: hasAuth("resetPassword:UserInfo")
+  }));
   return {
     api,
     auth
@@ -100,7 +97,7 @@ export function useUserProfileForm(formRef: Ref) {
       if (valid) {
         handleOperation({
           t,
-          apiReq: api.update(
+          apiReq: api.partialUpdate(
             {},
             {
               username: row.username,
@@ -188,20 +185,16 @@ export function useUserProfileForm(formRef: Ref) {
 }
 
 export function useUserLoginLog() {
-  const { t, te } = useI18n();
-  const api = reactive({
-    list: userLoginLogApi.list
-  });
+  const { t } = useI18n();
+  const api = reactive(userLoginLogApi);
+  api.fields = undefined;
 
   const auth = reactive({
-    list: hasAuth("list:userLoginLog")
+    list: hasAuth("list:UserLoginLog")
   });
 
   const { tagStyle } = usePublicHooks();
 
-  const loading = ref(true);
-  const dataList = ref([]);
-  const showColumns = ref([]);
   const pagination = reactive<PaginationProps>({
     total: 0,
     pageSize: 15,
@@ -210,106 +203,28 @@ export function useUserLoginLog() {
     layout: "prev, pager, next"
   });
 
-  const columns = ref<TableColumnList>([
-    {
-      prop: "pk",
-      minWidth: 100
-    },
-    {
-      prop: "ipaddress",
-      minWidth: 150
-    },
-    {
-      prop: "login_type.label",
-      minWidth: 150
-    },
-    {
-      prop: "browser",
-      minWidth: 150
-    },
-    {
-      prop: "system",
-      minWidth: 150
-    },
-    {
-      prop: "agent",
-      minWidth: 150
-    },
-    {
-      prop: "status",
-      minWidth: 100,
-      cellRenderer: ({ row, props }) => (
-        <el-tag size={props.size} style={tagStyle.value(row.status)}>
-          {row.status ? t("labels.success") : t("labels.failed")}
-        </el-tag>
-      )
-    },
-    {
-      minWidth: 180,
-      prop: "created_time",
-      formatter: ({ created_time }) =>
-        dayjs(created_time).format("YYYY-MM-DD HH:mm:ss")
-    }
-  ]);
-  const formatColumns = (results, columns) => {
-    if (results.length > 0) {
-      showColumns.value = Object.keys(results[0]);
-      cloneDeep(columns).forEach(column => {
-        if (
-          column?.prop &&
-          showColumns.value.indexOf(column?.prop.split(".")[0]) === -1
-        ) {
-          columns.splice(
-            columns.findIndex(obj => {
-              return obj.label === column.label;
-            }),
-            1
-          );
-        }
-      });
-    }
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
+    columns.forEach(column => {
+      switch (column._column?.key) {
+        case "status":
+          column["cellRenderer"] = renderBooleanTag({
+            t,
+            tagStyle,
+            field: column.prop,
+            actionMap: { true: t("labels.success"), false: t("labels.failed") }
+          });
+          break;
+      }
+    });
+    return columns;
   };
-  formatColumnsLabel(columns.value, t, te, "logsLogin");
-  const form = reactive({
-    ordering: "-created_time",
-    page: pagination.currentPage,
-    size: pagination.pageSize
-  });
-  const onSearch = () => {
-    loading.value = true;
-    form.page = pagination.currentPage;
-    api
-      .list(toRaw(form))
-      .then(res => {
-        if (res.code === 1000 && res.data) {
-          formatColumns(res.data?.results, columns.value);
-          dataList.value = res.data.results;
-          pagination.total = res.data.total;
-        } else {
-          message(`${t("results.failed")}，${res.detail}`, { type: "error" });
-        }
-        delay(500).then(() => {
-          loading.value = false;
-        });
-      })
-      .catch(() => {
-        loading.value = false;
-      });
-  };
-
-  onMounted(() => {
-    onSearch();
-  });
 
   return {
     t,
     api,
     auth,
-    columns,
-    loading,
-    dataList,
     pagination,
-    onSearch
+    listColumnsFormat
   };
 }
 
@@ -319,7 +234,7 @@ export function useAccountManage() {
   const userinfoStore = useUserStoreHook();
 
   function handleBindEmailOrPhone(category: string) {
-    openFormDialog({
+    openDialogDrawer({
       t,
       isAdd: false,
       title:
@@ -371,7 +286,7 @@ export function useAccountManage() {
   }
 
   function handleChangePassword() {
-    openFormDialog({
+    openDialogDrawer({
       t,
       isAdd: false,
       title: t("userinfo.changePassword"),
@@ -394,7 +309,7 @@ export function useAccountManage() {
         };
         handleOperation({
           t,
-          apiReq: api.reset(rowData),
+          apiReq: api.resetPassword(rowData),
           success() {
             done();
           },

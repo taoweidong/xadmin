@@ -5,17 +5,16 @@
 # author : ly_13
 # date : 7/22/2024
 
-import logging
-
 from django_filters import rest_framework as filters
 
 from common.core.filter import BaseFilterSet
 from common.core.modelset import OnlyListModelSet
 from common.core.pagination import DynamicPageNumber
+from common.utils import get_logger
 from system.models import DeptInfo
 from system.serializers.department import DeptSerializer
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SearchDeptFilter(BaseFilterSet):
@@ -35,10 +34,8 @@ class SearchDeptSerializer(DeptSerializer):
         read_only_fields = [x.name for x in DeptInfo._meta.fields]
 
 
-class SearchDeptView(OnlyListModelSet):
-    """
-    部门信息
-    """
+class SearchDeptViewSet(OnlyListModelSet):
+    """部门搜索"""
     queryset = DeptInfo.objects.all()
     serializer_class = SearchDeptSerializer
     pagination_class = DynamicPageNumber(1000)

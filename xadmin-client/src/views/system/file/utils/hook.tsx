@@ -1,38 +1,34 @@
 import { useI18n } from "vue-i18n";
 import { systemUploadFileApi } from "@/api/system/file";
-import { hasAuth } from "@/router/utils";
-import { h, reactive, type Ref, shallowRef } from "vue";
+import { getDefaultAuths, hasAuth } from "@/router/utils";
+import { getCurrentInstance, h, reactive, type Ref, shallowRef } from "vue";
 import {
-  type CRUDColumn,
-  openFormDialog,
+  isUrl,
+  openDialogDrawer,
   type OperationProps,
+  type PageTableColumn,
   renderBooleanTag,
-  type RePlusPageProps,
-  isUrl
-} from "@/components/RePlusCRUD";
-import uploadForm from "../upload.vue";
+  type RePlusPageProps
+} from "@/components/RePlusPage";
+import uploadForm from "../components/upload.vue";
 import { usePublicHooks } from "@/views/system/hooks";
 import { ElIcon, ElLink, ElText } from "element-plus";
 import { Link } from "@element-plus/icons-vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import Upload from "@iconify-icons/ep/upload";
+import Upload from "~icons/ep/upload";
 import { formatBytes } from "@pureadmin/utils";
 
 export function useSystemUploadFile(tableRef: Ref) {
   const { t } = useI18n();
 
   const api = reactive(systemUploadFileApi);
-  api.update = api.patch;
+
   const { tagStyle } = usePublicHooks();
 
   const auth = reactive({
-    list: hasAuth("list:systemUploadFile"),
-    create: hasAuth("create:systemUploadFile"),
-    delete: hasAuth("delete:systemUploadFile"),
-    update: hasAuth("update:systemUploadFile"),
-    upload: hasAuth("upload:systemUploadFile"),
-    config: hasAuth("config:systemUploadFile"),
-    batchDelete: hasAuth("batchDelete:systemUploadFile")
+    ...getDefaultAuths(getCurrentInstance()),
+    upload: hasAuth("upload:SystemUploadFile"),
+    config: hasAuth("config:SystemUploadFile")
   });
 
   const operationButtonsProps = shallowRef<OperationProps>({});
@@ -46,12 +42,12 @@ export function useSystemUploadFile(tableRef: Ref) {
           icon: useRenderIcon(Upload)
         },
         onClick: () => {
-          openFormDialog({
+          openDialogDrawer({
             t,
             title: t("systemUploadFile.upload"),
             rawRow: {},
             rawColumns: [],
-            dialogOptions: { width: "600px", hideFooter: true },
+            dialogDrawerOptions: { width: "600px", hideFooter: true },
             minWidth: "600px",
             form: uploadForm,
             props: {
@@ -92,7 +88,7 @@ export function useSystemUploadFile(tableRef: Ref) {
     }
   });
 
-  const listColumnsFormat = (columns: CRUDColumn[]) => {
+  const listColumnsFormat = (columns: PageTableColumn[]) => {
     columns.forEach(column => {
       switch (column._column?.key) {
         case "access_url":
@@ -111,10 +107,12 @@ export function useSystemUploadFile(tableRef: Ref) {
             );
           break;
         case "is_upload":
+        case "is_tmp":
           column["cellRenderer"] = renderBooleanTag({
             t,
             tagStyle,
-            field: column.prop
+            field: column.prop,
+            actionMap: { true: t("labels.yes"), false: t("labels.no") }
           });
           break;
         case "filesize":

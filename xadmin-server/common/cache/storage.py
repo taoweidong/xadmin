@@ -4,12 +4,13 @@
 # filename : storage
 # author : ly_13
 # date : 6/2/2023
-import logging
 
 from django.conf import settings
 from django.core.cache import cache
 
-logger = logging.getLogger(__name__)
+from common.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class RedisCacheBase(object):
@@ -58,8 +59,7 @@ class RedisCacheBase(object):
         return cache.get_many(self.cache_key)
 
     def del_many(self):
-        for delete_key in cache.iter_keys(self.cache_key):
-            cache.delete(delete_key)
+        cache.delete_pattern(self.cache_key)
         return True
 
 
@@ -102,4 +102,10 @@ class UserSystemConfigCache(RedisCacheBase):
 class CommonResourceIDsCache(RedisCacheBase):
     def __init__(self, prefix_key):
         self.cache_key = f"{settings.CACHE_KEY_TEMPLATE.get('common_resource_ids_key')}_{prefix_key}"
+        super().__init__(self.cache_key)
+
+
+class WebSocketMsgResultCache(RedisCacheBase):
+    def __init__(self, prefix_key):
+        self.cache_key = f"{settings.CACHE_KEY_TEMPLATE.get('websocket_message_result_key')}_{prefix_key}"
         super().__init__(self.cache_key)

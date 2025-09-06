@@ -18,27 +18,24 @@ from common.utils.token import make_token_cache
 from system.utils.auth import get_token_lifetime
 
 
-class TempTokenView(GenericAPIView):
-    """获取临时token"""
+class TempTokenAPIView(GenericAPIView):
+    """临时Token"""
     permission_classes = []
     authentication_classes = []
 
-    @extend_schema(
-        description="获取临时token",
-        responses=get_default_response_schema({'token': build_basic_type(OpenApiTypes.STR)})
-    )
+    @extend_schema(responses=get_default_response_schema({'token': build_basic_type(OpenApiTypes.STR)}))
     def get(self, request):
+        """获取{cls}"""
         token = make_token_cache(get_request_ident(request), time_limit=600, force_new=True).encode('utf-8')
         return ApiResponse(token=token)
 
 
-class CaptchaView(GenericAPIView):
-    """获取验证码"""
+class CaptchaAPIView(GenericAPIView):
+    """图片验证码"""
     permission_classes = []
     authentication_classes = []
 
     @extend_schema(
-        description="获取验证码",
         responses=get_default_response_schema(
             {
                 'captcha_image': build_basic_type(OpenApiTypes.STR),
@@ -48,10 +45,11 @@ class CaptchaView(GenericAPIView):
         )
     )
     def get(self, request):
-        return ApiResponse(**CaptchaAuth().generate())
+        """获取{cls}"""
+        return ApiResponse(**CaptchaAuth(request=request).generate())
 
 
-class RefreshTokenView(TokenRefreshView):
+class RefreshTokenAPIView(TokenRefreshView):
     """刷新Token"""
 
     def post(self, request, *args, **kwargs):

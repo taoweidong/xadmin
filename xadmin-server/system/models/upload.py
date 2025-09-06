@@ -10,10 +10,10 @@ import hashlib
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from common.core.models import upload_directory_path, DbAuditModel
+from common.core.models import upload_directory_path, DbAuditModel, AutoCleanFileMixin
 
 
-class UploadFile(DbAuditModel):
+class UploadFile(AutoCleanFileMixin, DbAuditModel):
     filepath = models.FileField(verbose_name=_("Filepath"), null=True, blank=True, upload_to=upload_directory_path)
     file_url = models.URLField(verbose_name=_("Internet URL"), max_length=255, blank=True, null=True,
                                help_text=_("Usually an address accessible to the outside Internet"))
@@ -25,7 +25,7 @@ class UploadFile(DbAuditModel):
                                  help_text=_("Temporary files are automatically cleared by scheduled tasks"))
     is_upload = models.BooleanField(verbose_name=_("Upload file"), default=False)
 
-    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+    def save(self, *args, **kwargs):
         self.filename = self.filename[:255]
         if not self.md5sum and not self.file_url:
             md5 = hashlib.md5()
@@ -34,7 +34,7 @@ class UploadFile(DbAuditModel):
             if not self.filesize:
                 self.filesize = self.filepath.size
             self.md5sum = md5.hexdigest()
-        return super().save(force_insert, force_update, using, update_fields)
+        return super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = _("Upload file")
