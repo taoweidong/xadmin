@@ -1,8 +1,17 @@
 import signal
 import threading
+import os
+import time
 
-import daemon
-from daemon import pidfile
+# 只在非Windows系统上导入daemon模块
+import sys
+if sys.platform != 'win32':
+    import daemon
+    from daemon import pidfile
+else:
+    # 在Windows上创建伪模块避免导入错误
+    daemon = None
+    pidfile = None
 
 from .hands import *
 from .services.base import BaseService
@@ -12,7 +21,7 @@ class ServicesUtil(object):
 
     def __init__(self, services, run_daemon=False, force_stop=False, stop_daemon=False):
         self._services = services
-        self.run_daemon = run_daemon
+        self.run_daemon = run_daemon and sys.platform != 'win32'  # Windows不支持daemon模式
         self.force_stop = force_stop
         self.stop_daemon = stop_daemon
         self.EXIT_EVENT = threading.Event()
@@ -90,6 +99,9 @@ class ServicesUtil(object):
 
     # -- daemon --
     def _stop_daemon(self):
+        if sys.platform == 'win32':
+            print("Daemon mode is not supported on Windows")
+            return
         if self.daemon_pid and self.daemon_is_running:
             os.kill(self.daemon_pid, 15)
         self.remove_daemon_pid()
@@ -100,6 +112,8 @@ class ServicesUtil(object):
 
     @property
     def daemon_pid(self):
+        if sys.platform == 'win32':
+            return 0
         if not os.path.isfile(self.daemon_pid_filepath):
             return 0
         with open(self.daemon_pid_filepath) as f:
@@ -111,6 +125,8 @@ class ServicesUtil(object):
 
     @property
     def daemon_is_running(self):
+        if sys.platform == 'win32':
+            return False
         try:
             os.kill(self.daemon_pid, 0)
         except (OSError, ProcessLookupError):
@@ -128,17 +144,7 @@ class ServicesUtil(object):
 
     @property
     def daemon_context(self):
+        if sys.platform == 'win32':
+            raise NotImplementedError("Daemon mode is not supported on Windows")
         daemon_log_file = open(self.daemon_log_filepath, 'a')
-        context = daemon.DaemonContext(
-            pidfile=pidfile.TimeoutPIDLockFile(self.daemon_pid_filepath),
-            signal_map={
-                signal.SIGTERM: lambda x, y: self.clean_up(),
-                signal.SIGHUP: 'terminate',
-            },
-            stdout=daemon_log_file,
-            stderr=daemon_log_file,
-            files_preserve=list(self.files_preserve_map.values()),
-            detach_process=True,
-        )
-        return context
-    # -- end daemon --
+        context = daemon.DaemonContext

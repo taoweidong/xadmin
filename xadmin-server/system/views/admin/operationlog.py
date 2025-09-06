@@ -34,3 +34,9 @@ class OperationLogView(ListDeleteModelSet, OnlyExportDataAction):
 
     ordering_fields = ['created_time', 'updated_time']
     filterset_class = OperationLogFilter
+
+    def get_queryset(self):
+        # 优化查询，使用select_related减少数据库查询
+        if self.action == 'list':
+            return self.queryset.select_related('creator')
+        return self.queryset

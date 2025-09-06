@@ -39,11 +39,17 @@ class UserFilter(BaseFilterSet):
 class UserView(BaseModelSet, UploadFileAction, ChangeRolePermissionAction, ImportExportDataAction):
     """用户管理"""
     FILE_UPLOAD_FIELD = 'avatar'
-    queryset = UserInfo.objects.all()
+    queryset = UserInfo.objects.select_related('dept').prefetch_related('roles').all()
     serializer_class = UserSerializer
 
     ordering_fields = ['date_joined', 'last_login', 'created_time']
     filterset_class = UserFilter
+
+    def get_queryset(self):
+        # 优化查询，使用select_related和prefetch_related减少数据库查询
+        if self.action == 'list':
+            return self.queryset.select_related('dept').prefetch_related('roles')
+        return self.queryset
 
     def perform_destroy(self, instance):
         if instance.is_superuser:

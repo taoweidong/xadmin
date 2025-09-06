@@ -36,6 +36,12 @@ class NoticeMessageView(BaseModelSet):
     ordering_fields = ['updated_time', 'created_time']
     filterset_class = NoticeMessageFilter
 
+    def get_queryset(self):
+        # 优化查询，使用prefetch_related减少数据库查询
+        if self.action == 'list':
+            return self.queryset.prefetch_related('notice_user', 'notice_dept', 'notice_role')
+        return self.queryset
+
     @extend_schema(
         request=OpenApiRequest(
             build_object_type(

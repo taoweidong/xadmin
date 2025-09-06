@@ -36,3 +36,9 @@ class DeptView(BaseModelSet, ChangeRolePermissionAction, ImportExportDataAction)
     pagination_class = DynamicPageNumber(1000)
     ordering_fields = ['created_time', 'rank']
     filterset_class = DeptFilter
+
+    def get_queryset(self):
+        # 优化查询，使用select_related减少数据库查询
+        if self.action == 'list':
+            return self.queryset.select_related('parent')
+        return self.queryset

@@ -15,8 +15,6 @@ from rest_framework.fields import ChoiceField
 from rest_framework.request import Request
 from rest_framework.serializers import RelatedField, MultipleChoiceField
 
-from common.core.filter import get_filter_queryset
-
 
 def attr_get(obj, attr, sp='.'):
     names = attr.split(sp)
@@ -88,9 +86,6 @@ class BasePrimaryKeyRelatedField(RelatedField):
         return False
 
     def get_queryset(self):
-        request = self.context.get("request", None)
-        if request and request.user and request.user.is_authenticated:
-            return get_filter_queryset(super().get_queryset(), request.user)
         return super().get_queryset()
 
     def display_value(self, instance):

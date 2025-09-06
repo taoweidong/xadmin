@@ -54,6 +54,12 @@ class ModelLabelFieldView(OnlyListModelSet):
     ordering_fields = ['created_time', 'updated_time']
     filterset_class = ModelLabelFieldFilter
 
+    def get_queryset(self):
+        # 优化查询，使用select_related减少数据库查询
+        if self.action == 'list':
+            return self.queryset.select_related('parent')
+        return self.queryset
+
     @extend_schema(
         description='获取字段选择',
         responses=get_default_response_schema(
@@ -92,7 +98,7 @@ class ModelLabelFieldView(OnlyListModelSet):
         ],
         responses=get_default_response_schema({'data': build_array_type(build_basic_type(OpenApiTypes.STR))})
     )
-    @action(methods=['get'], detail=False, queryset=ModelLabelField.objects, filterset_class=None)
+    @action(methods=['get'], detail=False, queryset=ModelLabelField.objects.all(), filterset_class=None)
     def lookups(self, request, *args, **kwargs):
         table = request.query_params.get('table')
         field = request.query_params.get('field')
@@ -106,7 +112,7 @@ class ModelLabelFieldView(OnlyListModelSet):
                 if mt:
                     mf = mt._meta.get_field(field)
                     if mf:
-                        return ApiResponse(data=mf.get_class_lookups().keys())
+                        return ApiResponse(data=list(mf.get_class_lookups().keys()))
         return ApiResponse(code=1001)
 
     @extend_schema(description='同步字段', responses=get_default_response_schema())

@@ -65,7 +65,16 @@ class BaseModelSerializer(ModelSerializer):
         if self.request and SysConfig.PERMISSION_FIELD and not self.ignore_field_permission:
             if hasattr(self.request, "fields"):
                 if self.request.fields and isinstance(self.request.fields, dict):
-                    allowed2 = set(self.request.fields.get(self.Meta.model._meta.label_lower, []))
+                    # 优化字段权限检查，使用缓存避免重复计算
+                    cache_key = f"field_permission_{self.Meta.model._meta.label_lower}"
+                    if hasattr(self.request, '_field_permission_cache'):
+                        allowed2 = self.request._field_permission_cache.get(cache_key)
+                    else:
+                        self.request._field_permission_cache = {}
+                    
+                    if allowed2 is None:
+                        allowed2 = set(self.request.fields.get(self.Meta.model._meta.label_lower, []))
+                        self.request._field_permission_cache[cache_key] = allowed2
 
             if hasattr(self.request, "user") and self.request.user and self.request.user.is_superuser:
                 allowed2 = set(self.fields)
@@ -84,8 +93,9 @@ class BaseModelSerializer(ModelSerializer):
         if allowed1 and allowed2 is None:
             allowed = allowed1
 
-        existing = set(self.fields)
-        for field_name in existing - allowed:
+        # 批量移除不需要的字段，提高性能
+        fields_to_remove = set(self.fields) - allowed
+        for field_name in fields_to_remove:
             self.fields.pop(field_name)
 
     def build_standard_field(self, field_name, model_field):

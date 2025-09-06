@@ -37,13 +37,24 @@ class MenuSerializer(BaseModelSerializer):
         # read_only_fields = ['pk'] # 用于文件导入导出时，不丢失上级节点
         extra_kwargs = {'rank': {'read_only': True}}
 
-    parent = BasePrimaryKeyRelatedField(queryset=Menu.objects, allow_null=True, required=False,
-                                        label=_("Parent menu"), attrs=['pk', 'name'])
+    # 使用select_related优化外键查询
+    parent = BasePrimaryKeyRelatedField(
+        queryset=Menu.objects.select_related('meta').all(), 
+        allow_null=True, required=False,
+        label=_("Parent menu"), attrs=['pk', 'name']
+    )
 
-    model = BasePrimaryKeyRelatedField(queryset=ModelLabelField.objects, allow_null=True, required=False,
-                                       label=_("Model"), attrs=['pk', 'name', 'label'], many=True)
-    menu_type = LabeledChoiceField(choices=Menu.MenuChoices.choices,
-                                   default=Menu.MenuChoices.DIRECTORY, label=_("Menu type"))
+    # 使用select_related优化多对多关系查询
+    model = BasePrimaryKeyRelatedField(
+        queryset=ModelLabelField.objects.select_related('parent').all(), 
+        allow_null=True, required=False,
+        label=_("Model"), attrs=['pk', 'name', 'label'], many=True
+    )
+    
+    menu_type = LabeledChoiceField(
+        choices=Menu.MenuChoices.choices,
+        default=Menu.MenuChoices.DIRECTORY, label=_("Menu type")
+    )
 
     def update(self, instance, validated_data):
         with transaction.atomic():
@@ -69,4 +80,3 @@ class MenuPermissionSerializer(MenuSerializer):
         extra_kwargs = {'rank': {'read_only': True}}
 
     title = serializers.CharField(source='meta.title', read_only=True, label=_("Menu title"))
-

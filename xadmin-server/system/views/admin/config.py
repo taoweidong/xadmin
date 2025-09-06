@@ -37,6 +37,10 @@ class SystemConfigView(BaseModelSet, InvalidConfigCacheAction, ImportExportDataA
     ordering_fields = ['created_time']
     filterset_class = SystemConfigFilter
 
+    def get_queryset(self):
+        # 优化查询
+        return self.queryset
+
 
 class UserPersonalConfigFilter(SystemConfigFilter):
     pk = filters.UUIDFilter(field_name='id')
@@ -58,3 +62,9 @@ class UserPersonalConfigView(BaseModelSet, InvalidConfigCacheAction, ImportExpor
     filterset_class = UserPersonalConfigFilter
     import_data_serializer_class = UserPersonalConfigExportImportSerializer
     export_data_serializer_class = UserPersonalConfigExportImportSerializer
+
+    def get_queryset(self):
+        # 优化查询，使用select_related减少数据库查询
+        if self.action == 'list':
+            return self.queryset.select_related('owner')
+        return self.queryset

@@ -14,7 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.validators import UniqueValidator
 
 from common.base.utils import AESCipherV2
-from common.core.fields import BasePrimaryKeyRelatedField, LabeledChoiceField
+from common.core.fields import BasePrimaryKeyRelatedField
 from common.fields.utils import input_wrapper
 from settings.utils.password import check_password_rules
 from settings.utils.security import LoginBlockUtil
@@ -28,10 +28,10 @@ class UserSerializer(BaseRoleRuleInfo):
     class Meta:
         model = UserInfo
         fields = ['pk', 'avatar', 'username', 'nickname', 'phone', 'email', 'gender', 'block', 'is_active',
-                  'password', 'dept', 'description', 'last_login', 'date_joined', 'roles', 'rules', 'mode_type']
+                  'password', 'dept', 'description', 'last_login', 'date_joined', 'roles', 'mode_type']
 
         extra_kwargs = {'last_login': {'read_only': True}, 'date_joined': {'read_only': True},
-                        'rules': {'read_only': True}, 'pk': {'read_only': True}, 'avatar': {'read_only': True},
+                        'pk': {'read_only': True}, 'avatar': {'read_only': True},
                         'roles': {'read_only': True}, 'dept': {'required': True}, 'password': {'write_only': True},
                         'email': {'validators': [UniqueValidator(queryset=UserInfo.objects.all())]},
                         'phone': {'validators': [UniqueValidator(queryset=UserInfo.objects.all())]},
@@ -39,17 +39,15 @@ class UserSerializer(BaseRoleRuleInfo):
         read_only_fields = ['pk'] + list(set([x.name for x in UserInfo._meta.fields]) - set(fields))
 
         table_fields = ['pk', 'avatar', 'username', 'nickname', 'gender', 'block', 'is_active', 'dept', 'phone',
-                        'last_login', 'date_joined', 'roles', 'rules']
+                        'last_login', 'date_joined', 'roles']
 
-    dept = BasePrimaryKeyRelatedField(queryset=DeptInfo.objects, allow_null=True, required=False,
-                                      attrs=['pk', 'name', 'parent_id'], label=_("Department"), format="{name}")
-    gender = LabeledChoiceField(choices=UserInfo.GenderChoices.choices,
-                                default=UserInfo.GenderChoices.UNKNOWN, label=_("Gender"))
+    # 使用select_related优化外键查询
+    dept = BasePrimaryKeyRelatedField(
+        queryset=DeptInfo.objects.select_related('parent').all(), 
+        allow_null=True, required=False,
+        attrs=['pk', 'name', 'parent_id'], label=_("Department"), format="{name}"
+    )
 
-    block = input_wrapper(serializers.SerializerMethodField)(read_only=True, input_type='boolean',
-                                                             label=_("Login blocked"))
-
-    @extend_schema_field(serializers.BooleanField)
     def get_block(self, obj):
         return LoginBlockUtil.is_user_block(obj.username)
 

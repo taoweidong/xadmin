@@ -21,21 +21,24 @@ logger = logging.getLogger(__name__)
 class DeptSerializer(BaseRoleRuleInfo):
     class Meta:
         model = DeptInfo
-        fields = ['pk', 'name', 'code', 'parent', 'rank', 'is_active', 'roles', 'user_count', 'rules',
+        fields = ['pk', 'name', 'code', 'parent', 'rank', 'is_active', 'roles', 'user_count',
                   'mode_type', 'auto_bind', 'description', 'created_time']
 
         table_fields = ['name', 'pk', 'code', 'user_count', 'rank', 'mode_type', 'auto_bind', 'is_active', 'roles',
-                        'rules', 'created_time']
+                        'created_time']
 
-        extra_kwargs = {'roles': {'read_only': True}, 'rules': {'read_only': True}}
+        extra_kwargs = {'roles': {'read_only': True}}
 
     user_count = serializers.SerializerMethodField(read_only=True, label=_("User count"))
-    parent = BasePrimaryKeyRelatedField(queryset=DeptInfo.objects, allow_null=True, required=False,
-                                        label=_("Superior department"), attrs=['pk', 'name', 'parent_id'])
+    # 使用select_related优化外键查询
+    parent = BasePrimaryKeyRelatedField(
+        queryset=DeptInfo.objects.select_related('parent').all(), 
+        allow_null=True, required=False,
+        label=_("Superior department"), attrs=['pk', 'name', 'parent_id']
+    )
 
     def validate(self, attrs):
-        # 权限需要其他接口设置，下面三个参数忽略
-        attrs.pop('rules', None)
+        # 权限需要其他接口设置，下面参数忽略
         attrs.pop('roles', None)
         attrs.pop('mode_type', None)
         # 上级部门必须存在，否则会出现数据权限问题
@@ -52,4 +55,7 @@ class DeptSerializer(BaseRoleRuleInfo):
 
     @extend_schema_field(serializers.IntegerField)
     def get_user_count(self, obj):
+        # 使用prefetch_related优化用户计数查询
+        if hasattr(obj, '_prefetched_user_count'):
+            return obj._prefetched_user_count
         return obj.userinfo_set.count()

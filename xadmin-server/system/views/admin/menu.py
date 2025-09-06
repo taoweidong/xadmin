@@ -48,17 +48,23 @@ class MenuView(BaseModelSet, RankAction, ImportExportDataAction, ChoicesAction):
         func_name = f'{view_instance.__class__.__name__}_{view_method.__name__}'
         return f"{func_name}_{request.user.pk}_{md5(request.META['QUERY_STRING'].encode('utf-8')).hexdigest()}"
 
+    def get_queryset(self):
+        # 优化查询，使用select_related减少数据库查询
+        if self.action == 'list':
+            return self.queryset.select_related('meta').prefetch_related('model')
+        return self.queryset
+
     @cache_response(timeout=600, key_func='get_cache_key')
     def list(self, request, *args, **kwargs):
         data = super().list(request, *args, **kwargs).data
-        return ApiResponse(**data)
+        return ApiResponse(data=data)
 
     @action(methods=['get'], detail=False)
     def permissions(self, request, *args, **kwargs):
         def get_queryset():
-            pks = self.filter_queryset(self.queryset).filter(menu_type=Menu.MenuChoices.PERMISSION).values_list(
+            pks = self.filter_queryset(self.get_queryset()).filter(menu_type=Menu.MenuChoices.PERMISSION).values_list(
                 'parent', flat=True)
-            return self.filter_queryset(self.queryset).filter(
+            return self.filter_queryset(self.get_queryset()).filter(
                 Q(menu_type=Menu.MenuChoices.PERMISSION) | Q(id__in=pks))
 
         self.get_queryset = get_queryset

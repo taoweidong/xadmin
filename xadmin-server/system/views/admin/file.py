@@ -32,3 +32,7 @@ class UploadFileView(BaseModelSet):
     serializer_class = UploadFileSerializer
     ordering_fields = ['created_time', 'filesize']
     filterset_class = UploadFileFilter
+
+    def get_queryset(self):
+        # 优化查询
+        return self.queryset

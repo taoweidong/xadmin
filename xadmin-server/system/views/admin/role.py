@@ -32,3 +32,9 @@ class RoleView(BaseModelSet, ImportExportDataAction):
     list_serializer_class = ListRoleSerializer
     ordering_fields = ['updated_time', 'name', 'created_time']
     filterset_class = RoleFilter
+
+    def get_queryset(self):
+        # 优化查询，使用prefetch_related减少数据库查询
+        if self.action == 'list':
+            return self.queryset.prefetch_related('menu')
+        return self.queryset
