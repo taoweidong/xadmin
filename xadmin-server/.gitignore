@@ -9,3 +9,5 @@ upload/*
 common/utils/ip/geoip/GeoLite2-City.mmdb
 common/utils/ip/ipip/ipipfree.ipdb
 config.yml
+venv/
+.venv/
