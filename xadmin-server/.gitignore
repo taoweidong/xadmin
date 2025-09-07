@@ -11,3 +11,4 @@ common/utils/ip/ipip/ipipfree.ipdb
 config.yml
 venv/
 .venv/
+/db.sqlite3
