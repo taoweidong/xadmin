@@ -5,6 +5,20 @@
 # author : ly_13
 # date : 12/15/2023
 import itertools
+from typing import Iterable, Iterator, List, TypeVar
+
+T = TypeVar('T')
+
+
+# Python 3.12之前没有itertools.batched，需要自己实现
+# 为了兼容Python 3.10，我们自己实现batched函数
+def batched(iterable: Iterable[T], n: int) -> Iterator[List[T]]:
+    iterator = iter(iterable)
+    while True:
+        batch = list(itertools.islice(iterator, n))
+        if not batch:
+            break
+        yield batch
 
 from django.contrib.auth import user_logged_out
 from django.db.models.signals import post_save, pre_delete
@@ -36,7 +50,7 @@ def batch_invalid_cache(pks, batch_length=1000):
         (cache_response.invalid_caches, get_cache_response_keys(pks))
     ]
     for keys in cleans:
-        for data in itertools.batched(keys[1], batch_length):
+        for data in batched(keys[1], batch_length):
             keys[0](data)
 
 

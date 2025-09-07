@@ -6,7 +6,8 @@
 # date : 6/29/2023
 import json
 import os
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta
+from datetime import timezone as datetime_timezone
 
 from django.conf import settings
 from django.db.utils import ProgrammingError, OperationalError
@@ -40,7 +41,7 @@ def get_celery_task_log_path(task_id):
 
 
 def eta_second(second):
-    return datetime.fromtimestamp(datetime.now().timestamp(), UTC) + timedelta(seconds=second)
+    return datetime.fromtimestamp(datetime.now().timestamp(), datetime_timezone.utc) + timedelta(seconds=second)
 
 
 def create_or_update_celery_periodic_tasks(tasks):
